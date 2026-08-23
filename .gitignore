@@ -1,0 +1,10 @@
+data/bronze/
+data/silver/
+*.dbc
+*.dbf
+.ipynb_checkpoints/
+__pycache__/
+.venv/
+venv/
+*.tmp
+~$*
