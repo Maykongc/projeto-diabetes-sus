@@ -70,3 +70,34 @@ def test_comparacao_com_tabnet_sinaliza_divergencia():
 
     assert resultado.loc[resultado["uf"] == "SP", "aprovado"].item() is True
     assert resultado.loc[resultado["uf"] == "CE", "aprovado"].item() is False
+
+
+def test_comparacao_com_tabnet_nao_descarta_uf_ano_so_no_nosso():
+    # AC existe na nossa camada gold mas nao no recorte do TabNet (ex.:
+    # mes ainda nao publicado la). A linha precisa sobreviver reprovada,
+    # nunca desaparecer da reconciliacao.
+    nosso = pd.DataFrame(
+        {"uf": ["SP", "AC"], "ano": [2023, 2023], "internacoes": [1000, 200]}
+    )
+    tabnet = pd.DataFrame({"uf": ["SP"], "ano": [2023], "internacoes": [1005]})
+    resultado = comparar_com_tabnet(nosso, tabnet)
+
+    assert len(resultado) == 2
+    linha_ac = resultado.loc[resultado["uf"] == "AC"]
+    assert linha_ac["aprovado"].item() is False
+    assert pd.isna(linha_ac["internacoes_tabnet"].item())
+
+
+def test_comparacao_com_tabnet_nao_descarta_uf_ano_so_no_tabnet():
+    # CE existe no TabNet mas sumiu da nossa camada gold - sintoma de mes
+    # faltante no nosso pipeline. Tambem precisa sobreviver reprovada.
+    nosso = pd.DataFrame({"uf": ["SP"], "ano": [2023], "internacoes": [1000]})
+    tabnet = pd.DataFrame(
+        {"uf": ["SP", "CE"], "ano": [2023, 2023], "internacoes": [1005, 500]}
+    )
+    resultado = comparar_com_tabnet(nosso, tabnet)
+
+    assert len(resultado) == 2
+    linha_ce = resultado.loc[resultado["uf"] == "CE"]
+    assert linha_ce["aprovado"].item() is False
+    assert pd.isna(linha_ce["internacoes_nosso"].item())

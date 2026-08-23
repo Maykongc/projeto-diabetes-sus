@@ -49,9 +49,18 @@ def verificar_sanidade(df: pd.DataFrame) -> None:
 def comparar_com_tabnet(
     nosso: pd.DataFrame, tabnet: pd.DataFrame, tolerancia: float = 0.02
 ) -> pd.DataFrame:
-    """Reconcilia nossos totais por UF e ano com os do TabNet."""
+    """Reconcilia nossos totais por UF e ano com os do TabNet.
+
+    Usa junção externa (how="outer"): uma combinação UF-ano presente em
+    apenas um dos lados é justamente o sintoma que a reconciliação existe
+    para detectar - mês faltante na nossa camada gold, ou UF-ano que o
+    TabNet não cobre. Uma junção interna faria essa linha desaparecer
+    silenciosamente do resultado, mascarando o problema. Aqui ela
+    permanece, com o lado ausente em NaN e aprovado=False, e a causa fica
+    legível ao olhar internacoes_nosso/internacoes_tabnet.
+    """
     juncao = nosso.merge(
-        tabnet, on=["uf", "ano"], suffixes=("_nosso", "_tabnet")
+        tabnet, on=["uf", "ano"], how="outer", suffixes=("_nosso", "_tabnet")
     )
     juncao["diferenca"] = (
         juncao["internacoes_nosso"] - juncao["internacoes_tabnet"]
@@ -59,5 +68,9 @@ def comparar_com_tabnet(
     juncao["erro_relativo"] = (
         juncao["diferenca"].abs() / juncao["internacoes_tabnet"]
     )
-    juncao["aprovado"] = juncao["erro_relativo"] <= tolerancia
+    # Comparações com NaN (chave sem contrapartida em um dos lados) já
+    # resultam em False em pandas, então essas linhas ficam reprovadas
+    # sem tratamento especial - mas deixamos explícito para documentar a
+    # intenção e blindar contra mudanças futuras no comportamento do pandas.
+    juncao["aprovado"] = (juncao["erro_relativo"] <= tolerancia).fillna(False)
     return juncao
