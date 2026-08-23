@@ -40,14 +40,44 @@ def aplicar_corte(
     return saida
 
 
-def calcular_icvd(
-    df: pd.DataFrame, pesos: dict | None = None
-) -> pd.DataFrame:
-    """Calcula o ICVD sobre um quadro que empilha os dois períodos.
+def parametros_escala(df: pd.DataFrame) -> dict:
+    """Calcula, para cada componente do ICVD, os limites de winsorização e
+    o mínimo/máximo pós-winsorização observados em `df`.
 
-    A normalização usa mínimos e máximos do conjunto inteiro, garantindo
-    que os ICVDs de 2019 e 2023-24 estejam na mesma escala e portanto
-    sejam comparáveis entre si.
+    Devolve a "régua" de normalização usada por `calcular_icvd`, para que
+    ela possa ser reaplicada a um outro quadro (por exemplo, agregados
+    regionais) em vez de normalizar esse outro quadro contra si mesmo.
+
+    Reaproveita `normalizar_minmax` apenas para herdar sua validação de
+    série constante — um componente sem variação no quadro municipal não
+    pode virar régua de normalização para mais nada.
+    """
+    parametros = {}
+    for componente in COMPONENTES_ICVD:
+        bruto = df[componente]
+        wins_inferior = bruto.quantile(0.01)
+        wins_superior = bruto.quantile(0.99)
+        comprimido = winsorizar(bruto)
+        normalizar_minmax(comprimido)  # valida: nao pode ser constante
+        parametros[componente] = {
+            "wins_inferior": wins_inferior,
+            "wins_superior": wins_superior,
+            "minimo": comprimido.min(),
+            "maximo": comprimido.max(),
+        }
+    return parametros
+
+
+def aplicar_escala(
+    df: pd.DataFrame, parametros: dict, pesos: dict | None = None
+) -> pd.DataFrame:
+    """Aplica a régua de `parametros_escala` a `df` e calcula o ICVD.
+
+    Winsoriza cada componente de `df` aos limites de `parametros` e depois
+    normaliza pelo mínimo/máximo também de `parametros` — nunca pelos
+    mínimo/máximo do próprio `df`. É assim que um quadro diferente do que
+    gerou a régua (ex.: agregados regionais) fica na mesma escala do
+    quadro municipal, em vez de ser normalizado contra si mesmo.
     """
     pesos = dict(PESOS_IGUAIS) if pesos is None else dict(pesos)
     if abs(sum(pesos.values()) - 1.0) > 1e-9:
@@ -57,13 +87,28 @@ def calcular_icvd(
     saida["icvd"] = 0.0
 
     for componente in COMPONENTES_ICVD:
-        normalizado = normalizar_minmax(winsorizar(saida[componente]))
+        p = parametros[componente]
+        comprimido = saida[componente].clip(p["wins_inferior"], p["wins_superior"])
+        normalizado = (comprimido - p["minimo"]) / (p["maximo"] - p["minimo"])
         if componente in COMPONENTES_INVERTIDOS:
             normalizado = 1.0 - normalizado
         saida[f"{componente}_norm"] = normalizado
         saida["icvd"] += normalizado * pesos[componente]
 
     return saida
+
+
+def calcular_icvd(
+    df: pd.DataFrame, pesos: dict | None = None
+) -> pd.DataFrame:
+    """Calcula o ICVD sobre um quadro que empilha os dois períodos.
+
+    A normalização usa mínimos e máximos do conjunto inteiro (`df` gera a
+    própria régua via `parametros_escala`), garantindo que os ICVDs de
+    2019 e 2023-24 estejam na mesma escala e portanto sejam comparáveis
+    entre si.
+    """
+    return aplicar_escala(df, parametros_escala(df), pesos)
 
 
 def calcular_recuperacao(df_icvd: pd.DataFrame) -> pd.DataFrame:

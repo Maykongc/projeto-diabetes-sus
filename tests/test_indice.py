@@ -5,9 +5,11 @@ import pytest
 from diabetes_sus.config import PERIODO_ATUAL, PERIODO_BASE
 from diabetes_sus.indice import (
     aplicar_corte,
+    aplicar_escala,
     calcular_icvd,
     calcular_recuperacao,
     normalizar_minmax,
+    parametros_escala,
     winsorizar,
 )
 
@@ -135,3 +137,63 @@ def test_pesos_que_nao_somam_um_levantam_erro():
                 "cobertura_aps": 0.5,
             },
         )
+
+
+def test_calcular_icvd_equivale_a_aplicar_a_propria_regua():
+    # calcular_icvd(df) precisa ser exatamente aplicar_escala(df,
+    # parametros_escala(df)) — é essa equivalência que garante que o
+    # refactor não mudou o resultado para o caso municipal.
+    df = quadro()
+    esperado = calcular_icvd(df)
+    obtido = aplicar_escala(df, parametros_escala(df))
+    pd.testing.assert_frame_equal(obtido, esperado)
+
+
+def test_parametros_escala_denuncia_componente_constante():
+    df = quadro()
+    df["letalidade"] = 0.05
+    with pytest.raises(ValueError, match="constante"):
+        parametros_escala(df)
+
+
+def test_aplicar_escala_usa_a_regua_de_outro_quadro_sem_normalizar_contra_si():
+    # A régua vem de um quadro "municipal" com 10 pontos. Um quadro
+    # "regional" com um único valor exatamente no minimo/maximo observado
+    # no municipal (apos winsorizacao) precisa colapsar para icvd == 0 —
+    # o oposto do que aconteceria se o regional fosse normalizado contra
+    # si mesmo (onde um único valor não pode nem ser normalizado).
+    municipal = quadro(n=10)
+    parametros = parametros_escala(municipal)
+
+    regional = pd.DataFrame(
+        {
+            "taxa_internacao_padronizada": [
+                municipal["taxa_internacao_padronizada"].min()
+            ],
+            "prop_amputacao": [municipal["prop_amputacao"].min()],
+            "letalidade": [municipal["letalidade"].min()],
+            # cobertura_aps eh invertido: o MAIOR valor observado vira o
+            # MENOR componente normalizado (menor risco).
+            "cobertura_aps": [municipal["cobertura_aps"].max()],
+        }
+    )
+
+    resultado = aplicar_escala(regional, parametros)
+    assert resultado["icvd"].iloc[0] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_aplicar_escala_recorta_valor_regional_fora_da_faixa_municipal():
+    # Um agregado regional pode, em tese, cair fora do intervalo
+    # observado no municipal (ex.: media regional acima do maior
+    # municipio). O clip aos limites de winsorizacao garante que o icvd
+    # continua em [0, 1] mesmo nesse caso.
+    municipal = quadro(n=10)
+    parametros = parametros_escala(municipal)
+
+    extremo = municipal.iloc[[0]].copy()
+    extremo["taxa_internacao_padronizada"] = (
+        municipal["taxa_internacao_padronizada"].max() * 10
+    )
+
+    resultado = aplicar_escala(extremo, parametros)
+    assert resultado["icvd"].between(0, 1).all()
