@@ -28,7 +28,7 @@ O passo a passo detalhado, com o motivo de cada etapa manual, está em [`docs/00
 7. `python -m pytest` — confere os módulos de cálculo (idade, padronização, índice, validação)
 8. Executar `notebooks/02_eda.ipynb` e `notebooks/03_indice_icvd.ipynb`
 9. Publicar a camada gold no Google Sheets
-10. Abrir `dashboard/diabetes_sus.pbix` no Power BI Desktop e construir o dashboard conforme `docs/05-dashboard-powerbi.md`
+10. Seguir `docs/05-dashboard-powerbi.md` para construir o dashboard no Power BI Desktop e salvá-lo como `dashboard/diabetes_sus.pbix` — o `.pbix` é o resultado desse passo, não a entrada dele (Power BI Desktop é ferramenta gráfica; não há como gerar o arquivo por código)
 11. Preencher `docs/04-conclusoes.md` e a seção "Principais achados" acima
 
 ## Estrutura de pastas

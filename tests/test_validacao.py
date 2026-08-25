@@ -63,6 +63,23 @@ def test_sanidade_rejeita_letalidade_acima_de_um():
         verificar_sanidade(df)
 
 
+def test_sanidade_aceita_cobertura_aps_acima_de_cem():
+    # A cobertura de ESF do e-Gestor passa de 100% em municipio pequeno: uma
+    # equipe a mais cobre mais gente do que a cidade tem. Nao e' erro de dado,
+    # e nao pode parar os notebooks.
+    verificar_sanidade(pd.DataFrame({"cobertura_aps": [104.7, 158.2]}))
+
+
+def test_sanidade_rejeita_cobertura_aps_absurda():
+    with pytest.raises(ValueError, match="cobertura_aps"):
+        verificar_sanidade(pd.DataFrame({"cobertura_aps": [250.0]}))
+
+
+def test_sanidade_rejeita_cobertura_aps_negativa():
+    with pytest.raises(ValueError, match="cobertura_aps"):
+        verificar_sanidade(pd.DataFrame({"cobertura_aps": [-3.0]}))
+
+
 def test_comparacao_com_tabnet_sinaliza_divergencia():
     nosso = pd.DataFrame({"uf": ["SP", "CE"], "ano": [2023, 2023], "internacoes": [1000, 500]})
     tabnet = pd.DataFrame({"uf": ["SP", "CE"], "ano": [2023, 2023], "internacoes": [1005, 900]})

@@ -2,11 +2,19 @@
 
 import pandas as pd
 
+# Limite superior de cobertura_aps: 200, nao 100. A cobertura de Estrategia
+# Saude da Familia publicada pelo e-Gestor e' calculada como populacao
+# potencialmente coberta pelas equipes cadastradas dividida pela populacao do
+# municipio, e passa de 100% em municipios pequenos — o numero de equipes e' um
+# degrau inteiro, e uma equipe a mais ja cobre mais gente do que a cidade tem.
+# Com o teto em 100 o `verificar_sanidade` levantava ValueError num dado
+# legitimo e parava os notebooks 02 e 03. Acima de 200% e' erro de unidade ou de
+# planilha, nao caracteristica do indicador.
 LIMITES = {
     "taxa_internacao_padronizada": (0.0, None),
     "prop_amputacao": (0.0, 1.0),
     "letalidade": (0.0, 1.0),
-    "cobertura_aps": (0.0, 100.0),
+    "cobertura_aps": (0.0, 200.0),
     "icvd": (0.0, 1.0),
 }
 

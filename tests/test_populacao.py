@@ -28,8 +28,11 @@ def test_codigo_tem_sete_digitos(pop):
     assert pop["cod_municipio"].str.len().eq(7).all()
 
 
-def test_usa_apenas_as_faixas_do_projeto(pop):
-    assert set(pop["faixa_etaria"]) <= set(ROTULOS_FAIXAS)
+def test_usa_exatamente_as_faixas_do_projeto(pop):
+    # Igualdade, nao inclusao: com `<=` uma faixa inteira ausente passaria
+    # despercebida, e a populacao e' o denominador de todas as taxas do
+    # projeto — faixa faltando vira taxa padronizada errada.
+    assert set(pop["faixa_etaria"]) == set(ROTULOS_FAIXAS)
 
 
 def test_sexo_tem_apenas_m_e_f(pop):

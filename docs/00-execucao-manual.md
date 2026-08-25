@@ -28,7 +28,7 @@ cod_municipio,ano,cobertura_aps
 
 ## 3. Subir os insumos para `{BASE}/insumos/` no Drive
 
-**Por quê:** a célula 2.2 do notebook (`notebooks/01_ingestao_colab.ipynb`) faz o join da camada silver com população e cobertura de APS, e ambos os arquivos precisam existir no Drive antes dela rodar — a célula seguinte (2.2, verificação) interrompe a execução com `FileNotFoundError` se algum estiver faltando.
+**Por quê:** a célula 2.3 do notebook (`notebooks/01_ingestao_colab.ipynb`) faz o join da camada silver com população e cobertura de APS, e ambos os arquivos precisam existir no Drive antes dela rodar — a célula anterior (2.2, verificação de insumos) interrompe a execução com `FileNotFoundError` se algum estiver faltando.
 
 **Como:** copiar dois arquivos para `MyDrive/diabetes_sus/insumos/` no Drive:
 
@@ -106,7 +106,7 @@ Conferir a análise de sensibilidade (Seção 3 do notebook 03) contra o critér
 
 **Por quê:** o Power BI consome as tabelas via Google Sheets, não direto dos CSVs locais — isso permite atualizar o dashboard sem reabrir o Power BI Desktop, e serve de camada de dados compartilhável fora do Git.
 
-**Como:** seguir o passo a passo de `02-coleta-de-dados.md`, Seção 2.5, e o roteiro completo da Tarefa 13 (`.superpowers/sdd/2026-08-23-diabetes-sus/task-13-brief.md`) — criar a planilha `diabetes_sus_gold`, importar `municipio_ano.csv`, `icvd_municipio.csv`, `icvd_regiao.csv` e `genero_regiao.csv` como abas, publicar cada uma na web em formato CSV, e registrar as URLs publicadas em `02-coleta-de-dados.md`.
+**Como:** seguir o passo a passo de `02-coleta-de-dados.md`, Seção 2.5 — criar a planilha `diabetes_sus_gold`, importar `municipio_ano.csv`, `icvd_municipio.csv`, `icvd_regiao.csv` e `genero_regiao.csv` como abas, publicar cada uma na web em formato CSV, e registrar as URLs publicadas em `02-coleta-de-dados.md`.
 
 - [ ] Feito
 
