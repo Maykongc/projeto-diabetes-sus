@@ -5,6 +5,7 @@ import pytest
 from diabetes_sus.config import PERIODO_ATUAL, PERIODO_BASE
 from diabetes_sus.indice import (
     aplicar_corte,
+    aplicar_corte_ranking,
     aplicar_escala,
     calcular_icvd,
     calcular_recuperacao,
@@ -197,3 +198,84 @@ def test_aplicar_escala_recorta_valor_regional_fora_da_faixa_municipal():
 
     resultado = aplicar_escala(extremo, parametros)
     assert resultado["icvd"].between(0, 1).all()
+
+
+# --- Corte de elegibilidade do ranking (correcao I2 da revisao final) --------
+#
+# O corte de 20 e' sobre o TOTAL 2019-2024, nao por periodo: 2019 e' um ano e
+# 2023-24 sao dois, entao exigir 20 dentro de cada periodo derrubaria o ranking
+# para uma fracao dos municipios e tornaria falsa a calibracao de 3.5.
+
+
+def empilhado_de(por_municipio: dict) -> pd.DataFrame:
+    """{cod: (internacoes_2019, internacoes_2023_24)} -> quadro empilhado."""
+    linhas = []
+    for cod, (base, atual) in por_municipio.items():
+        if base is not None:
+            linhas.append(
+                {"cod_municipio": cod, "periodo": PERIODO_BASE, "internacoes": base}
+            )
+        if atual is not None:
+            linhas.append(
+                {"cod_municipio": cod, "periodo": PERIODO_ATUAL, "internacoes": atual}
+            )
+    return pd.DataFrame(linhas)
+
+
+def test_corte_do_ranking_usa_o_total_dos_seis_anos():
+    # 12 + 10 = 22 nos dois periodos observados, mas o total 2019-2024 e' 40
+    # (os anos de 2020-22 tambem contam). Passa nos dois criterios.
+    empilhado = empilhado_de({"3550308": (12, 10)})
+    totais = pd.Series({"3550308": 40})
+
+    resultado = aplicar_corte_ranking(empilhado, totais)
+
+    assert resultado["passou_corte_total"].all()
+    assert resultado["no_ranking"].all()
+
+
+def test_municipio_abaixo_de_vinte_no_total_fica_fora():
+    empilhado = empilhado_de({"3550308": (8, 9)})
+    totais = pd.Series({"3550308": 19})
+
+    resultado = aplicar_corte_ranking(empilhado, totais)
+
+    assert not resultado["passou_corte_total"].any()
+    assert not resultado["no_ranking"].any()
+
+
+def test_denominador_degenerado_em_um_periodo_reprova_no_criterio_secundario():
+    # 60 internacoes no total, mas so 2 em 2023-24: letalidade e
+    # prop_amputacao do periodo atual seriam razoes de dois casos.
+    empilhado = empilhado_de({"3550308": (40, 2)})
+    totais = pd.Series({"3550308": 60})
+
+    resultado = aplicar_corte_ranking(empilhado, totais)
+
+    assert resultado["passou_corte_total"].all()
+    assert not resultado["passou_corte_periodo"].any()
+    assert not resultado["no_ranking"].any()
+
+
+def test_municipio_ausente_de_um_periodo_nao_entra_no_ranking():
+    empilhado = empilhado_de({"3550308": (40, None), "2304400": (30, 30)})
+    totais = pd.Series({"3550308": 90, "2304400": 80})
+
+    resultado = aplicar_corte_ranking(empilhado, totais)
+
+    so_um = resultado[resultado["cod_municipio"] == "3550308"]
+    dois = resultado[resultado["cod_municipio"] == "2304400"]
+    assert not so_um["no_ranking"].any()
+    assert dois["no_ranking"].all()
+
+
+def test_corte_do_ranking_exige_total_de_todos_os_municipios():
+    empilhado = empilhado_de({"3550308": (40, 40)})
+    with pytest.raises(ValueError, match="sem total"):
+        aplicar_corte_ranking(empilhado, pd.Series({"2304400": 90}))
+
+
+def test_corte_do_ranking_exige_os_dois_periodos_no_quadro():
+    empilhado = empilhado_de({"3550308": (40, None)})
+    with pytest.raises(ValueError, match="periodos ausentes"):
+        aplicar_corte_ranking(empilhado, pd.Series({"3550308": 90}))

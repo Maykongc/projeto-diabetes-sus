@@ -6,6 +6,7 @@ from diabetes_sus.config import (
     COMPONENTES_ICVD,
     COMPONENTES_INVERTIDOS,
     CORTE_MIN_INTERNACOES,
+    CORTE_MIN_INTERNACOES_PERIODO,
     PERIODO_ATUAL,
     PERIODO_BASE,
     PESOS_IGUAIS,
@@ -30,13 +31,86 @@ def normalizar_minmax(s: pd.Series) -> pd.Series:
 def aplicar_corte(
     df: pd.DataFrame, corte: int = CORTE_MIN_INTERNACOES
 ) -> pd.DataFrame:
-    """Marca quais municípios têm eventos suficientes para entrar no ranking.
+    """Marca quais linhas têm eventos suficientes, comparando `internacoes`
+    de cada linha ao corte.
+
+    Primitiva de uma linha só: ela não sabe a que período a linha pertence
+    nem quantos anos esse período cobre. O critério do ranking municipal
+    (20 internações no total de 2019-2024, mais 5 em cada período) está em
+    `aplicar_corte_ranking`, que é o que os notebooks usam.
 
     O corte vale apenas para o ranking municipal. Análises regionais
     devem usar todos os municípios.
     """
     saida = df.copy()
     saida["no_ranking"] = saida["internacoes"] >= corte
+    return saida
+
+
+def aplicar_corte_ranking(
+    empilhado: pd.DataFrame,
+    internacoes_totais: pd.Series,
+    corte_total: int = CORTE_MIN_INTERNACOES,
+    corte_periodo: int = CORTE_MIN_INTERNACOES_PERIODO,
+    periodos: tuple = (PERIODO_BASE, PERIODO_ATUAL),
+) -> pd.DataFrame:
+    """Aplica os dois critérios de elegibilidade do ranking municipal.
+
+    1. **Critério principal — `corte_total` internações somando 2019-2024.**
+       É o corte calibrado em `docs/03-modelagem.md` (Seção 3.5): 20
+       internações no período inteiro, o que mantém cerca de 98% da
+       população no ranking. `internacoes_totais` é uma Series indexada por
+       `cod_municipio` com a soma das internações dos seis anos — vem da
+       camada gold inteira, não de `empilhado`, porque `empilhado` cobre só
+       2019 e 2023-24.
+    2. **Critério secundário — `corte_periodo` internações em cada período.**
+       `letalidade` e `prop_amputacao` são razões calculadas dentro de cada
+       período; um município com 19 internações em 2019 e 1 em 2023-24
+       passaria no critério 1 com um denominador degenerado no período
+       atual. Município ausente de um dos períodos também reprova aqui.
+
+    Devolve `empilhado` com as colunas `internacoes_2019_2024`,
+    `passou_corte_total`, `passou_corte_periodo` e `no_ranking` (a
+    conjunção das duas). As colunas intermediárias existem para que a
+    exclusão possa ser decomposta por motivo, em vez de reportada como um
+    total único.
+    """
+    saida = empilhado.copy()
+
+    saida["internacoes_2019_2024"] = saida["cod_municipio"].map(
+        internacoes_totais
+    )
+    if saida["internacoes_2019_2024"].isna().any():
+        raise ValueError(
+            "municipio de `empilhado` sem total em `internacoes_totais` — "
+            "o total precisa cobrir todos os municipios do quadro"
+        )
+    saida["passou_corte_total"] = (
+        saida["internacoes_2019_2024"] >= corte_total
+    )
+
+    por_periodo = saida.pivot_table(
+        index="cod_municipio",
+        columns="periodo",
+        values="internacoes",
+        aggfunc="sum",
+    )
+    faltando = set(periodos) - set(por_periodo.columns)
+    if faltando:
+        raise ValueError(f"periodos ausentes no quadro: {sorted(faltando)}")
+
+    # skipna=False: periodo ausente vira NaN, e NaN >= corte e' False -
+    # municipio sem os dois periodos nao entra no ranking.
+    minimo = por_periodo.reindex(columns=list(periodos)).min(
+        axis=1, skipna=False
+    )
+    saida["passou_corte_periodo"] = (
+        saida["cod_municipio"].map(minimo >= corte_periodo).fillna(False)
+    )
+
+    saida["no_ranking"] = (
+        saida["passou_corte_total"] & saida["passou_corte_periodo"]
+    )
     return saida
 
 

@@ -39,7 +39,10 @@ FROM gold
 GROUP BY regiao, sexo
 ORDER BY regiao, sexo;
 
--- 5. Municipios com mais amputacoes, respeitando o corte do ranking
+-- 5. Municipios com mais amputacoes, respeitando o criterio principal do
+--    ranking do ICVD: 20 internacoes somando 2019-2024 (docs/03-modelagem.md 3.5).
+--    O ranking do ICVD acrescenta um segundo criterio (5 internacoes em cada
+--    periodo) que esta consulta, exploratoria e sobre o periodo inteiro, nao aplica.
 SELECT cod_municipio, uf, regiao,
        SUM(internacoes) AS internacoes,
        SUM(amputacoes)  AS amputacoes,

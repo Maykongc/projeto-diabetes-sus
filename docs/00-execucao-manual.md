@@ -67,7 +67,9 @@ Esperado: os seis anos de 2019 a 2024 presentes, sem nulos em `internacoes`, `po
 
 **Como:**
 
-1. Acessar o TabNet do DATASUS em `http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sih/cnv/niuf.def`, gerar internações por UF e ano com o mesmo filtro (CID-10 E10–E14).
+1. Acessar o TabNet do DATASUS em `http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sih/cnv/nruf.def` — **Morbidade Hospitalar do SUS por local de residência** (verificado: HTTP 200) —, gerar internações por UF e ano com o mesmo filtro (CID-10 E10–E14).
+
+   **É `nruf.def`, não `niuf.def`.** O cubo `niuf.def` é por local de *internação*; a camada gold agrega por `MUNIC_RES`, ou seja, por local de *residência*. Comparar residência contra internação produz divergência sistemática em toda UF com fluxo de pacientes (quem mora no interior e interna na capital de outro estado), e como divergência acima de 2% bloqueia a entrega, a reconciliação reprovaria por um falso positivo — depois de toda a ingestão já ter sido feita.
 2. Salvar como `data/raw/tabnet_referencia.csv`, com as colunas `uf`, `ano`, `internacoes`.
 3. Rodar a reconciliação:
 

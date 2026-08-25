@@ -11,7 +11,14 @@ ANOS_ATUAIS = (2023, 2024)
 PERIODO_BASE = "2019"
 PERIODO_ATUAL = "2023-24"
 
+# Corte principal do ranking municipal: 20 internacoes no TOTAL de 2019-2024.
+# E' o corte descrito na tabela de calibracao de docs/03-modelagem.md 3.5
+# (mantem 98% da populacao). Aplicar 20 por periodo derrubaria o ranking para
+# uma fracao dos municipios, porque 2019 e um ano e 2023-24 sao dois.
 CORTE_MIN_INTERNACOES = 20
+# Requisito secundario: pelo menos 5 internacoes em CADA periodo, para que
+# letalidade e prop_amputacao daquele periodo tenham denominador nao degenerado.
+CORTE_MIN_INTERNACOES_PERIODO = 5
 
 ROTULOS_FAIXAS = ["<30", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"]
 LIMITES_FAIXAS = [29, 39, 49, 59, 69, 79]
