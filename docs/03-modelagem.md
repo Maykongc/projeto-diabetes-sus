@@ -8,7 +8,7 @@ O pipeline segue o padrão de camadas (medallion):
 
 - **Bronze** (Colab): AIHs de diabetes, 2019–2024, no grão original de uma linha por internação, particionado por UF e ano.
 - **Silver** (Colab, PySpark): agregação para o grão **município × ano × faixa etária × sexo**, com joins contra a população do IBGE e a cobertura de APS do e-Gestor. É neste ponto que o PySpark se justifica: agregar dezenas de milhões de internações ao longo de seis anos em pandas puro excederia a memória disponível no Colab.
-- **Gold**: a tabela `municipio_ano`, com cerca de 5.570 municípios × 6 anos × combinações de faixa etária e sexo — algumas dezenas de milhares de linhas, poucos megabytes. É o único artefato que atravessa a fronteira entre Colab e máquina local.
+- **Gold**: a tabela `municipio_ano`, na **grade completa** de 5.570 municípios × 6 anos × 2 sexos × 7 faixas etárias = 467.880 linhas e 15 colunas, poucos megabytes. A grade é completa por decisão metodológica, não por conveniência: a combinação sem nenhuma internação precisa existir com zero, senão a população dela some do denominador da padronização etária (Seção 3.3). É o único artefato que atravessa a fronteira entre Colab e máquina local.
 - **Local**: padronização etária, cálculo do ICVD, correlações e EDA, em pandas e DuckDB.
 - **Publicação**: CSV exportado para Google Sheets, consumido pelo Power BI.
 
@@ -46,6 +46,17 @@ onde  w(i) = pop_padrao(i) / pop_padrao_total
 ```
 
 `i` percorre as faixas etárias `<30, 30–39, 40–49, 50–59, 60–69, 70–79, 80+`; `casos(m,i)` e `pop(m,i)` são internações e população do município `m` na faixa `i`; `w(i)` é o peso dessa faixa na população nacional total. Implementado em `src/diabetes_sus/padronizacao.py` (`padronizar_por_municipio`, generalizada depois para `padronizar_por_grupo`, que aceita qualquer coluna ou combinação de colunas de agrupamento — usada tanto para município quanto para região e para o recorte por sexo), testado em `tests/test_padronizacao.py`.
+
+**Faixa etária sem internação entra com taxa zero e peso preservado.** A soma acima percorre **sempre as sete faixas**, inclusive as que não registraram nenhuma internação no município: elas contribuem `casos(m,i) = 0`, portanto taxa específica zero, e **mantêm seu peso `w(i)`**. Os pesos somam 1 sobre as sete faixas, sempre.
+
+Isso precisa ser dito explicitamente porque a alternativa é um erro fácil de cometer e difícil de enxergar. A camada bronze só contém internações por diabetes, então uma agregação ingênua produz linha apenas para as combinações `(município, ano, sexo, faixa)` que tiveram ao menos um caso — a faixa sem internação simplesmente não aparece. Se, diante da faixa ausente, os pesos forem renormalizados sobre as faixas presentes (`w(i) = pop_padrao(i) / soma das faixas presentes`), o peso da faixa vazia é **redistribuído** entre as demais em vez de contribuir com zero, e a taxa padronizada infla.
+
+O efeito não é marginal: a faixa `<30` sozinha vale cerca de **42% da população padrão** brasileira e é justamente a que menos interna por diabetes, ou seja, a que mais frequentemente falta. Pior, o viés é **correlacionado com o porte do município** — quanto menor o município, mais faixas vazias, mais inflação —, exatamente o viés de composição que a padronização existe para eliminar.
+
+Duas defesas independentes, ambas implementadas:
+
+1. **Na origem.** A camada gold é construída a partir da **grade completa** — o produto de todas as combinações município × ano × sexo × faixa da tabela de população, 5.570 × 6 × 2 × 7 = **467.880 linhas** — com `left join` da silver e contagens preenchidas com zero onde não houve internação (`notebooks/01_ingestao_colab.ipynb`, Seção 2.3). Zero internações passa a ser um fato registrado, não uma linha ausente.
+2. **Na defesa.** `padronizar_por_grupo` reindexa cada grupo contra as sete faixas do padrão antes de calcular: a faixa que não aparece entra com taxa zero e peso preservado, nunca é descartada. Só levanta erro se o grupo não tiver população em faixa nenhuma (aí não existe denominador possível) ou se uma faixa tiver casos sem população (órfão de join, taxa infinita). O comportamento está fixado em `tests/test_padronizacao.py`, incluindo um teste que compara o resultado com a faixa ausente contra o resultado com a mesma faixa presente e zero casos — os dois descrevem a mesma realidade e têm de dar o mesmo número.
 
 ## 3.4 O índice ICVD
 
