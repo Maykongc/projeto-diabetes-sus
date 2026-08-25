@@ -16,7 +16,7 @@ Marque cada item ao concluir. Os itens 1 a 7 são pré-requisito direto de `docs
 
 **Por quê:** não existe um endpoint de API pública para esse dado — é um relatório exportável manualmente pela interface web do e-Gestor. Automatizar exigiria simular login e navegação numa sessão autenticada, fora do escopo de um pipeline de dados.
 
-**Como:** acessar `https://egestorab.saude.gov.br/paginas/acesso/relatorios/RelCoberturaAB.xhtml`, extrair a cobertura mensal (ou anual, conforme o relatório disponível) de Atenção Básica/Estratégia Saúde da Família por município, para os anos 2019 a 2024, e formatar como um único CSV chamado `cobertura_aps.csv` com exatamente as colunas:
+**Como:** acessar `https://egestorab.saude.gov.br/paginas/acessoPublico/relatorios/relHistoricoCoberturaAB.xhtml` (URL confirmada por HTTP 200), extrair a cobertura mensal (ou anual, conforme o relatório disponível) de Atenção Básica/Estratégia Saúde da Família por município, para os anos 2019 a 2024, e formatar como um único CSV chamado `cobertura_aps.csv` com exatamente as colunas:
 
 ```
 cod_municipio,ano,cobertura_aps

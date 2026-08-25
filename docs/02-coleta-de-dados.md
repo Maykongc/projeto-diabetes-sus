@@ -4,21 +4,23 @@
 
 | Fonte | Conteúdo | Tipo | Acesso | Verificado |
 |---|---|---|---|---|
-| **SIH/SUS** (`RD*.dbc`) | Internação individual: município de residência, CID-10 principal, procedimento (SIGTAP), valor pago, dias de permanência, óbito, idade, sexo | Estruturado, ~1.944 arquivos mensais | FTP DATASUS, `https://ftp.datasus.gov.br/dissemin/publicos/SIHSUS/200801_/Dados/RD{UF}{AA}{MM}.dbc` | Sim — arquivos de exemplo baixados e lidos com sucesso durante o desenho do projeto |
-| **SIM** (`DO*.dbc`) | Óbitos com causa básica, município, idade, sexo | Estruturado | FTP DATASUS, `https://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/` | Sim |
-| **e-Gestor Atenção Básica** | Cobertura mensal de Atenção Básica e Estratégia Saúde da Família por município | Estruturado (relatório exportável em CSV/XLS) | `https://egestorab.saude.gov.br/paginas/acesso/relatorios/RelCoberturaAB.xhtml` — download manual, sem API pública | Acesso confirmado; extração é manual (ver Seção 2.5 e `00-execucao-manual.md`) |
-| **CNES** (`LT*.dbc`) | Leitos por município e tipo, usado como variável de contexto | Estruturado | FTP DATASUS, `https://ftp.datasus.gov.br/dissemin/publicos/CNES/200508_/Dados/LT/` | Sim |
+| **SIH/SUS** (`RD*.dbc`) | Internação individual: município de residência, CID-10 principal, procedimento (SIGTAP), valor pago, dias de permanência, óbito, idade, sexo | Estruturado, ~1.944 arquivos mensais | FTP DATASUS, `ftp://ftp.datasus.gov.br/dissemin/publicos/SIHSUS/200801_/Dados/RD{UF}{AA}{MM}.dbc` | Sim — arquivo de exemplo baixado por FTP e lido com sucesso durante o desenho do projeto |
+| **SIM** (`DO*.dbc`) | Óbitos com causa básica, município, idade, sexo | Estruturado | FTP DATASUS, `ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/` | Sim — 812 arquivos listados e um baixado (237 KB) por FTP durante o desenho do projeto |
+| **e-Gestor Atenção Básica** | Cobertura mensal de Atenção Básica e Estratégia Saúde da Família por município | Estruturado (relatório exportável em CSV/XLS) | `https://egestorab.saude.gov.br/paginas/acessoPublico/relatorios/relHistoricoCoberturaAB.xhtml` — download manual, sem API pública | Sim — HTTP 200; extração é manual (ver Seção 2.5 e `00-execucao-manual.md`) |
+| **CNES** (`LT*.dbc`) | Leitos por município e tipo, usado como variável de contexto | Estruturado | FTP DATASUS, `ftp://ftp.datasus.gov.br/dissemin/publicos/CNES/200508_/Dados/LT/` | Sim |
+
+As três URLs de FTP acima usam o esquema `ftp://`, confirmado por esta sessão (download de um arquivo de exemplo do SIM e listagem de 812 arquivos no diretório do SIM). O notebook `notebooks/01_ingestao_colab.ipynb` acessa o mesmo host usando `https://` — isso não é um erro do notebook: o Google Colab consegue resolver esse host por HTTPS, o que nem toda rede local consegue (nesta sessão, `https://ftp.datasus.gov.br/...` expirou por timeout). É diferença de ambiente, não inconsistência a corrigir; o notebook permanece como está.
 
 ## 2.2 Fontes — denominadores e contexto
 
 | Fonte | Conteúdo | Acesso | Verificado |
 |---|---|---|---|
-| **IBGE / SIDRA**, agregado 9514 | População do Censo 2022 por município, sexo e grupo etário quinquenal | API REST, `https://servicodados.ibge.gov.br/api/v3/agregados/9514/periodos/2022/variaveis/93` | Sim — 5.570 municípios, 203.080.756 habitantes; script `scripts/baixar_populacao_ibge.py`, testado em `tests/test_populacao.py` |
-| **IBGE malhas municipais** | Geometria dos municípios para o mapa coroplético | API REST, `https://servicodados.ibge.gov.br/api/v3/malhas` | Sim |
-| **Atlas Brasil (PNUD)** | IDHM municipal, base Censo 2010 | Download direto, `https://www.atlasbrasil.org.br/consulta/planilha` | Contexto apenas — ver limitação da defasagem em `03-modelagem.md` e `04-conclusoes.md` |
-| **VIGITEL** | Prevalência autorreferida de diabetes, capitais | Download direto, `https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/v/vigitel/publicacoes` | Validação apenas — usado no teste da hipótese de gênero (Seção 3.8 da modelagem) |
-| **Base dos Dados** (`br_ms_sih`) | SIH já tratado, disponível via SQL/BigQuery | `https://basedosdados.org/dataset/br-ms-sih` | Rota de contingência caso a ingestão direta via `.dbc` falhe (Seção 2.4) |
-| **TabNet DATASUS** | Totais oficiais de internação por UF e ano, usados só para reconciliação, nunca como fonte primária | `http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sih/cnv/niuf.def` | Sim — usado na validação externa (Seção 3.9 da modelagem) |
+| **IBGE / SIDRA**, agregado 9514 | População do Censo 2022 por município, sexo e grupo etário quinquenal | API REST, `https://servicodados.ibge.gov.br/api/v3/agregados/9514/periodos/2022/variaveis/93?localidades=N6[N3[{uf}]]&classificacao=2[4,5]|287[{grupos}]` (o endpoint exige os parâmetros `localidades` e `classificacao` — chamado sem eles, como só a base da URL, devolve HTTP 500) | Sim — HTTP 200 com os parâmetros preenchidos (testado com UF=35, grupo 93089/93090); 5.570 municípios, 203.080.756 habitantes; script `scripts/baixar_populacao_ibge.py`, testado em `tests/test_populacao.py` |
+| **IBGE malhas municipais** | Geometria dos municípios para o mapa coroplético | API REST, `https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&intrarregiao=municipio` | Sim — HTTP 200 |
+| **Atlas Brasil (PNUD)** | IDHM municipal, base Censo 2010 — contexto apenas; ver limitação da defasagem em `03-modelagem.md` e `04-conclusoes.md` | Download direto, `https://www.atlasbrasil.org.br/consulta/planilha` | Endereço público, não testado nesta sessão — responde 308 (redirecionamento) sobre HTTP; HTTPS não confirmado nesta rede |
+| **VIGITEL** | Prevalência autorreferida de diabetes, capitais — validação apenas, usado no teste da hipótese de gênero (Seção 3.8 da modelagem) | Download direto, `https://www.gov.br/saude/pt-br/centrais-de-conteudo/publicacoes/svsa/vigitel` | Sim — HTTP 200 |
+| **Base dos Dados** (`br_ms_sih`) | SIH já tratado, disponível via SQL/BigQuery — rota de contingência caso a ingestão direta via `.dbc` falhe (Seção 2.4) | `https://basedosdados.org/dataset/br-ms-sih` | Sim — HTTP 200 |
+| **TabNet DATASUS** | Totais oficiais de internação por UF e ano, usados só para reconciliação, nunca como fonte primária — Seção 3.9 da modelagem | `http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sih/cnv/niuf.def` | Sim — HTTP 200 |
 
 O agregado SIDRA usado é o **9514** ("População residente, por sexo, idade e forma de declaração da idade" — Censo Demográfico 2022), variável 93, não o 4714 mencionado em versões preliminares do desenho do projeto: o número correto foi confirmado contra os metadados da API (`.../9514/metadados`) e é o que está de fato implementado em `scripts/baixar_populacao_ibge.py`.
 

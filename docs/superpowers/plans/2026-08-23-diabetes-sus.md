@@ -859,7 +859,7 @@ print(f'{len(alvos)} arquivos esperados')   # deve imprimir 1944
 ```python
 import datasus_dbc, pandas as pd, urllib.request, os, json, traceback
 
-FTP = ('https://ftp.datasus.gov.br/dissemin/publicos/SIHSUS'
+FTP = ('ftp://ftp.datasus.gov.br/dissemin/publicos/SIHSUS'
        '/200801_/Dados/RD{uf}{aa:02d}{mm:02d}.dbc')
 
 COLUNAS = ['MUNIC_RES','SEXO','IDADE','COD_IDADE','DIAG_PRINC',
