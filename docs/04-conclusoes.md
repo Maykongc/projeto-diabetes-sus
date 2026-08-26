@@ -14,7 +14,7 @@
 
 **Pergunta:** quais são os padrões mais fortes e mais defensáveis encontrados na análise — os que sustentariam uma recomendação de política pública sem precisar de qualificação extensa? Cada achado deve vir com o número que o sustenta e a fonte desse número.
 
-**Onde buscar:** cruzar `notebooks/02_eda.ipynb` (Seções 3 a 8: distribuição da taxa bruta, taxa por região, blocos pré/durante/pós-pandemia, cobertura de APS contra taxa de internação, correlação entre indicadores, top municípios por amputação) com `notebooks/03_indice_icvd.ipynb` (Seções 2 e 4: ICVD municipal e regional). Candidatos a achado forte: a região com maior ICVD atual; a região com pior recuperação (delta mais positivo) entre 2019 e 2023–24; a correlação entre cobertura de APS e taxa padronizada de internação.
+**Onde buscar:** cruzar `notebooks/02_eda.ipynb` (Seções 3 a 8: distribuição da taxa bruta, taxa por região, blocos pré/durante/pós-pandemia, cobertura de APS contra taxa de internação, correlação entre indicadores, top municípios por amputação) com `notebooks/03_indice_icvd.ipynb` (Seções 2 e 4: ICVD municipal e regional). Candidatos a achado forte: a região com maior ICVD atual; a região com pior recuperação (delta mais positivo) entre 2019 e 2023–24; a correlação entre cobertura de APS e taxa padronizada de internação — que precisa ser lida **dentro de um único período**, nunca entre 2019 e 2023–24, porque a metodologia da cobertura muda entre as duas séries (ver Seção 3.4 de `03-modelagem.md`). A cobertura é variável de contexto, não componente do ICVD.
 
 ## 3. Desigualdade regional — resultado central
 

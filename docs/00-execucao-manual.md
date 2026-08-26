@@ -12,19 +12,37 @@ Marque cada item ao concluir. Os itens 1 a 7 são pré-requisito direto de `docs
 
 - [ ] Feito
 
-## 2. Baixar a cobertura de APS do e-Gestor Atenção Básica
+## 2. Baixar a cobertura de APS
 
-**Por quê:** não existe um endpoint de API pública para esse dado — é um relatório exportável manualmente pela interface web do e-Gestor. Automatizar exigiria simular login e navegação numa sessão autenticada, fora do escopo de um pipeline de dados.
+**Deixou de ser manual.** O e-Gestor Atenção Básica foi substituído pelo portal
+**Relatórios Públicos da APS** (`https://relatorioaps.saude.gov.br`), uma aplicação
+Angular cuja API pública é acessível sem autenticação. O script
+`scripts/baixar_cobertura_aps.py` consulta essa API diretamente.
 
-**Como:** acessar `https://egestorab.saude.gov.br/paginas/acessoPublico/relatorios/relHistoricoCoberturaAB.xhtml` (URL confirmada por HTTP 200), extrair a cobertura mensal (ou anual, conforme o relatório disponível) de Atenção Básica/Estratégia Saúde da Família por município, para os anos 2019 a 2024, e formatar como um único CSV chamado `cobertura_aps.csv` com exatamente as colunas:
+**Como:**
 
+```bash
+python scripts/baixar_cobertura_aps.py
 ```
-cod_municipio,ano,cobertura_aps
-```
 
-`cod_municipio` no código IBGE de 7 dígitos (como string, para não perder zero à esquerda), `ano` como inteiro, `cobertura_aps` como percentual médio anual (0–100).
+Leva poucos minutos e grava `data/gold/cobertura_aps.csv` com as colunas
+`cod_municipio` (IBGE de 7 dígitos, string), `uf`, `regiao`, `ano`,
+`cobertura_aps` (percentual médio anual) e `fonte`.
 
-- [ ] Feito
+**Por que existe a coluna `fonte`.** A API expõe duas séries com metodologias e
+janelas **disjuntas**: `/cobertura/ab` cobre 2019–2020 e é truncada em 100%;
+`/cobertura/aps` cobre 2021–2024 e não tem teto (o máximo real observado é 803,2%).
+Não há nenhum mês em comum entre elas, então não existe forma de calibrar uma
+contra a outra — e a média dos mesmos municípios salta 42,2 pontos percentuais na
+virada de 2020 para 2021, com correlação de apenas 0,506.
+
+Por causa disso, **a cobertura não é componente do ICVD**; ela é variável de
+contexto, analisada dentro de cada período. A justificativa completa está na
+Seção 3.4 de `03-modelagem.md`. Nenhuma análise deste projeto pode comparar um
+valor de 2019–2020 com um de 2021–2024.
+
+**Resultado esperado:** 33.418 linhas, 5.570 municípios, anos de 2019 a 2024
+completos. Se a contagem de municípios não fechar em 5.570, não siga adiante.
 
 ## 3. Subir os insumos para `{BASE}/insumos/` no Drive
 
@@ -33,7 +51,7 @@ cod_municipio,ano,cobertura_aps
 **Como:** copiar dois arquivos para `MyDrive/diabetes_sus/insumos/` no Drive:
 
 1. `data/gold/populacao_municipio_faixa_sexo.parquet` — já existe no repositório local (gerado pela Tarefa 5 a partir do Censo 2022). Só copiar.
-2. `cobertura_aps.csv` — o arquivo produzido no item 2 acima.
+2. `data/gold/cobertura_aps.csv` — o arquivo produzido pelo script do item 2 acima.
 
 - [ ] Feito
 
@@ -57,7 +75,7 @@ cod_municipio,ano,cobertura_aps
 python -c "import pandas as pd; d=pd.read_csv('data/gold/municipio_ano.csv', dtype={'cod_municipio':str}); print(d.shape); print(d['ano'].value_counts().sort_index()); print(d.isna().sum())"
 ```
 
-Esperado: os seis anos de 2019 a 2024 presentes, sem nulos em `internacoes`, `populacao` e `cod_municipio` (nulos em `cobertura_aps` são aceitáveis se o e-Gestor não cobrir algum município/ano).
+Esperado: os seis anos de 2019 a 2024 presentes, sem nulos em `internacoes`, `populacao` e `cod_municipio` (nulos em `cobertura_aps` são aceitáveis: ela é variável de contexto, não componente do índice, e município sem cobertura continua entrando no ranking).
 
 - [ ] Feito
 
@@ -95,7 +113,7 @@ print(resultado[~resultado['aprovado']])
 
 **Como:** com o ambiente local configurado (`pip install -r requirements.txt`), abrir e executar de ponta a ponta:
 
-1. `notebooks/02_eda.ipynb` — panorama nacional, distribuição da taxa bruta, taxa por região, blocos pré/durante/pós-pandemia, cobertura de APS × taxa de internação, correlações, top municípios por amputação.
+1. `notebooks/02_eda.ipynb` — panorama nacional, distribuição da taxa bruta, taxa por região, blocos pré/durante/pós-pandemia, cobertura de APS × taxa de internação em dois painéis, um por metodologia, correlações, top municípios por amputação.
 2. `notebooks/03_indice_icvd.ipynb` — ICVD municipal e regional, análise de sensibilidade dos pesos, trilha de gênero. Gera `data/gold/icvd_municipio.csv`, `data/gold/icvd_regiao.csv` e `data/gold/genero_regiao.csv`.
 
 Conferir a análise de sensibilidade (Seção 3 do notebook 03) contra o critério de aceitação (sobreposição do top-100 acima de 80%, Spearman acima de 0,9) antes de seguir — se o critério não for atingido, o índice precisa de revisão antes do dashboard.

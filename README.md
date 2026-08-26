@@ -21,15 +21,16 @@ O passo a passo detalhado, com o motivo de cada etapa manual, está em [`docs/00
 
 1. `pip install -r requirements.txt`
 2. `python scripts/baixar_populacao_ibge.py` — baixa a população do Censo 2022 por município, sexo e faixa etária (já versionada em `data/gold/populacao_municipio_faixa_sexo.parquet`, não precisa rodar de novo a menos que o dado mude)
-3. Subir `src/diabetes_sus/` e os insumos (população, cobertura de APS) para o Google Drive
-4. Abrir `notebooks/01_ingestao_colab.ipynb` no Google Colab e executar — é a etapa longa (1.944 arquivos de AIH), idempotente, pode ser reexecutada após queda de sessão
-5. Baixar `municipio_ano.csv` do Drive para `data/gold/`
-6. Reconciliar contra o TabNet do DATASUS (divergência acima de 2% bloqueia a entrega)
-7. `python -m pytest` — confere os módulos de cálculo (idade, padronização, índice, validação)
-8. Executar `notebooks/02_eda.ipynb` e `notebooks/03_indice_icvd.ipynb`
-9. Publicar a camada gold no Google Sheets
-10. Seguir `docs/05-dashboard-powerbi.md` para construir o dashboard no Power BI Desktop e salvá-lo como `dashboard/diabetes_sus.pbix` — o `.pbix` é o resultado desse passo, não a entrada dele (Power BI Desktop é ferramenta gráfica; não há como gerar o arquivo por código)
-11. Preencher `docs/04-conclusoes.md` e a seção "Principais achados" acima
+3. `python scripts/baixar_cobertura_aps.py` — cobertura de APS pela API pública
+4. Subir `src/diabetes_sus/` e os dois insumos (população, cobertura) para o Google Drive
+5. Abrir `notebooks/01_ingestao_colab.ipynb` no Google Colab e executar — é a etapa longa (1.944 arquivos de AIH), idempotente, pode ser reexecutada após queda de sessão
+6. Baixar `municipio_ano.csv` do Drive para `data/gold/`
+7. Reconciliar contra o TabNet do DATASUS (divergência acima de 2% bloqueia a entrega)
+8. `python -m pytest` — confere os módulos de cálculo (idade, padronização, índice, validação)
+9. Executar `notebooks/02_eda.ipynb` e `notebooks/03_indice_icvd.ipynb`
+10. Publicar a camada gold no Google Sheets
+11. Seguir `docs/05-dashboard-powerbi.md` para construir o dashboard no Power BI Desktop e salvá-lo como `dashboard/diabetes_sus.pbix` — o `.pbix` é o resultado desse passo, não a entrada dele (Power BI Desktop é ferramenta gráfica; não há como gerar o arquivo por código)
+12. Preencher `docs/04-conclusoes.md` e a seção "Principais achados" acima
 
 ## Estrutura de pastas
 

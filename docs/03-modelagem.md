@@ -7,7 +7,7 @@ A estratégia central é **filtrar cedo**: cada arquivo mensal de AIH é baixado
 O pipeline segue o padrão de camadas (medallion):
 
 - **Bronze** (Colab): AIHs de diabetes, 2019–2024, no grão original de uma linha por internação, particionado por UF e ano.
-- **Silver** (Colab, PySpark): agregação para o grão **município × ano × faixa etária × sexo**, com joins contra a população do IBGE e a cobertura de APS do e-Gestor. É neste ponto que o PySpark se justifica: agregar dezenas de milhões de internações ao longo de seis anos em pandas puro excederia a memória disponível no Colab.
+- **Silver** (Colab, PySpark): agregação para o grão **município × ano × faixa etária × sexo**, com joins contra a população do IBGE e a cobertura de APS do portal Relatórios Públicos da APS. É neste ponto que o PySpark se justifica: agregar dezenas de milhões de internações ao longo de seis anos em pandas puro excederia a memória disponível no Colab.
 - **Gold**: a tabela `municipio_ano`, na **grade completa** de 5.570 municípios × 6 anos × 2 sexos × 7 faixas etárias = 467.880 linhas e 15 colunas, poucos megabytes. A grade é completa por decisão metodológica, não por conveniência: a combinação sem nenhuma internação precisa existir com zero, senão a população dela some do denominador da padronização etária (Seção 3.3). É o único artefato que atravessa a fronteira entre Colab e máquina local.
 - **Local**: padronização etária, cálculo do ICVD, correlações e EDA, em pandas e DuckDB.
 - **Publicação**: CSV exportado para Google Sheets, consumido pelo Power BI.
@@ -60,18 +60,19 @@ Duas defesas independentes, ambas implementadas:
 
 ## 3.4 O índice ICVD
 
-O Índice Composto de Vulnerabilidade no Cuidado ao Diabetes (ICVD) combina quatro componentes, todos orientados na mesma direção — quanto maior, pior o cuidado:
+O Índice Composto de Vulnerabilidade no Cuidado ao Diabetes (ICVD) combina três componentes, todos orientados na mesma direção — quanto maior, pior o cuidado:
 
 | Componente | Direção | O que captura |
 |---|---|---|
 | Taxa de internação por diabetes, padronizada por idade | Maior = pior | Falha da atenção primária em evitar a descompensação |
 | Proporção de internações com amputação de membro inferior | Maior = pior | Paciente chegou tarde ao sistema |
 | Letalidade hospitalar | Maior = pior | Gravidade na chegada e capacidade de resposta do hospital |
-| Cobertura de Atenção Primária (**invertida**) | Menor cobertura = pior | Causa estrutural, não desfecho |
 
-**Excluídos deliberadamente do índice:** gasto médio por internação e leitos por habitante. Ambos são ambíguos como indicador de qualidade — gasto alto pode significar caso mais grave ou pode significar cuidado melhor; poucos leitos reduzem a taxa de internação sem necessariamente melhorar o desfecho do paciente. Os dois permanecem como variáveis de contexto na discussão dos resultados, fora da soma do índice.
+**A cobertura de Atenção Primária foi removida do índice.** Ela era o quarto componente e a única causa estrutural entre eles, mas os dados públicos não sustentam seu uso numa escala comum aos dois períodos. O portal expõe duas séries com metodologias e janelas disjuntas: `/cobertura/ab` cobre 2019–2020 e é truncada em 100%, enquanto `/cobertura/aps` cobre 2021–2024 e não tem teto. Não existe um único mês em comum entre elas, portanto não há como calibrar uma contra a outra. Na virada de 2020 para 2021, a cobertura média dos mesmos municípios salta **42,2 pontos percentuais**, com correlação de apenas **0,506** entre os dois anos — isso é a régua mudando, não o SUS melhorando. Alimentar os dois períodos com metodologias diferentes faria o indicador de recuperação medir, em boa parte, a troca de metodologia, que é exatamente o artefato que este projeto trabalha para eliminar. Há um segundo motivo, independente: na série de 2019 a mediana é exatamente 100,0 e o teto é 100,0, ou seja, metade dos municípios está empatada no limite superior — como componente de um índice, ela quase não discrimina. A cobertura permanece como **variável de contexto**, analisada dentro de cada período (onde a metodologia é consistente), na Seção 5 de `notebooks/03_indice_icvd.ipynb` e na Seção 6 de `notebooks/02_eda.ipynb`. A pergunta que importa — municípios com mais cobertura internam menos? — continua respondida; o que se abandona é fingir que os dois blocos são comparáveis.
 
-**Pesos: iguais, 25% cada.** Não há base empírica disponível neste projeto para justificar hierarquizar um componente sobre os outros, e pesos iguais é a posição honesta na ausência dessa evidência — o mesmo princípio usado pelo IDH ao combinar renda, educação e longevidade. Há também um argumento técnico a favor: amputação é o evento mais raro dos quatro componentes e, por isso, o mais sujeito a ruído estatístico em municípios pequenos; dar a ele um peso maior aumentaria a variância do índice sem aumentar a informação que ele carrega. A Seção 3.7 avalia se essa escolha de pesos é robusta.
+**Também excluídos deliberadamente do índice:** gasto médio por internação e leitos por habitante. Ambos são ambíguos como indicador de qualidade — gasto alto pode significar caso mais grave ou pode significar cuidado melhor; poucos leitos reduzem a taxa de internação sem necessariamente melhorar o desfecho do paciente. Os dois permanecem como variáveis de contexto na discussão dos resultados, fora da soma do índice.
+
+**Pesos: iguais, 1/3 cada.** Não há base empírica disponível neste projeto para justificar hierarquizar um componente sobre os outros, e pesos iguais é a posição honesta na ausência dessa evidência — o mesmo princípio usado pelo IDH ao combinar renda, educação e longevidade. Há também um argumento técnico a favor: amputação é o evento mais raro dos três componentes e, por isso, o mais sujeito a ruído estatístico em municípios pequenos; dar a ele um peso maior aumentaria a variância do índice sem aumentar a informação que ele carrega. A Seção 3.7 avalia se essa escolha de pesos é robusta.
 
 Implementado em `src/diabetes_sus/indice.py` (`calcular_icvd`), testado em `tests/test_indice.py`.
 
@@ -87,7 +88,7 @@ Duas defesas são aplicadas:
 
    Os dois critérios estão implementados em `indice.aplicar_corte_ranking` (testado em `tests/test_indice.py`) e aplicados em `notebooks/03_indice_icvd.ipynb`, Seção 2. O impacto real do critério secundário só pode ser medido contra os dados observados, e por isso é **impresso em tempo de execução**, não estimado aqui.
 
-   **Como a exclusão fica visível.** O município que não passa fica de fora da **tabela de ranking** do dashboard — não aparece em `icvd_municipio.csv`, que só contém municípios ranqueáveis. Nunca é excluído em silêncio: a Seção 2 do notebook imprime um funil com a contagem de cada motivo de exclusão separadamente (menos de 20 internações no total; menos de 5 em algum dos dois períodos; sem cobertura de APS; sem dado nos dois períodos depois das exclusões anteriores), com um `assert` de que a soma dos motivos mais os ranqueáveis fecha com o total de municípios. Não há mapa municipal onde pintar o excluído de cinza: o mapa do dashboard é **por UF** (`docs/05-dashboard-powerbi.md`), porque o Shape Map do Power BI não sustenta 5.570 polígonos municipais. A granularidade municipal vive na dispersão da Página 2 e nas tabelas de ranking, e é lá que a exclusão se manifesta — por ausência da linha, com o motivo reportado pelo notebook.
+   **Como a exclusão fica visível.** O município que não passa fica de fora da **tabela de ranking** do dashboard — não aparece em `icvd_municipio.csv`, que só contém municípios ranqueáveis. Nunca é excluído em silêncio: a Seção 2 do notebook imprime um funil com a contagem de cada motivo de exclusão separadamente (menos de 20 internações no total; menos de 5 em algum dos dois períodos; sem dado nos dois períodos depois das exclusões anteriores), com um `assert` de que a soma dos motivos mais os ranqueáveis fecha com o total de municípios. Não há mapa municipal onde pintar o excluído de cinza: o mapa do dashboard é **por UF** (`docs/05-dashboard-powerbi.md`), porque o Shape Map do Power BI não sustenta 5.570 polígonos municipais. A granularidade municipal vive na dispersão da Página 2 e nas tabelas de ranking, e é lá que a exclusão se manifesta — por ausência da linha, com o motivo reportado pelo notebook.
 
 2. **Winsorização em p1/p99** de cada componente, antes da normalização, para conter o efeito de valores extremos isolados que sobrevivem ao corte.
 
@@ -118,7 +119,7 @@ Se o corte de 20 internações fosse aplicado ao estudo inteiro, ele removeria p
 
 ## 3.6 Normalização e comparabilidade entre os dois momentos
 
-Cada um dos quatro componentes é normalizado para o intervalo 0–1 por min-max após a winsorização; o ICVD é a média aritmética dos quatro componentes normalizados. Zero representa o melhor cuidado observado na amostra; um representa o pior.
+Cada um dos três componentes é normalizado para o intervalo 0–1 por min-max após a winsorização; o ICVD é a média aritmética dos três componentes normalizados. Zero representa o melhor cuidado observado na amostra; um representa o pior.
 
 O índice é calculado em **dois momentos**: **2019**, como linha de base pré-pandemia, e **2023–2024**, como situação mais recente disponível.
 
@@ -136,7 +137,7 @@ A mesma régua comum é reaplicada ao nível regional: o ICVD de cada uma das ci
 
 ## 3.7 Análise de sensibilidade
 
-Uma escolha de pesos iguais é defensável, mas não é a única defensável. Para verificar se o ranking do ICVD depende demais dessa escolha específica, o índice do período atual (2023–24) é recalculado sob três esquemas alternativos de pesos — mais peso em desfecho (amputação e letalidade), mais peso em estrutura (cobertura de APS), mais peso em acesso (taxa de internação) — e comparado ao esquema de pesos iguais por dois critérios: correlação de Spearman entre os valores do índice (o índice muda de posição relativa entre municípios?) e sobreposição percentual do top-100 de piores municípios (os piores continuam sendo, majoritariamente, os mesmos, mesmo que o valor numérico mude?).
+Uma escolha de pesos iguais é defensável, mas não é a única defensável. Para verificar se o ranking do ICVD depende demais dessa escolha específica, o índice do período atual (2023–24) é recalculado sob três esquemas alternativos de pesos — mais peso em desfecho (amputação), mais peso em gravidade (letalidade), mais peso em acesso (taxa de internação) — e comparado ao esquema de pesos iguais por dois critérios: correlação de Spearman entre os valores do índice (o índice muda de posição relativa entre municípios?) e sobreposição percentual do top-100 de piores municípios (os piores continuam sendo, majoritariamente, os mesmos, mesmo que o valor numérico mude?).
 
 O critério de aceitação, definido antes de rodar a análise (`notebooks/03_indice_icvd.ipynb`, Seção 3): sobreposição do top-100 acima de 80% e correlação de Spearman acima de 0,9 tornam o ranking defensável — a escolha de pesos vira nota de rodapé, não um ponto vulnerável da metodologia. Abaixo desse critério, o índice exigiria revisão antes de qualquer entrega.
 
