@@ -14,7 +14,9 @@ LIMITES = {
     "taxa_internacao_padronizada": (0.0, None),
     "prop_amputacao": (0.0, 1.0),
     "letalidade": (0.0, 1.0),
-    "cobertura_aps": (0.0, 200.0),
+    # A serie /cobertura/aps nao tem teto de 100%: o maximo observado no
+    # download de 2019-2024 e 803,2. O limite so existe para pegar lixo.
+    "cobertura_aps": (0.0, 1000.0),
     "icvd": (0.0, 1.0),
 }
 

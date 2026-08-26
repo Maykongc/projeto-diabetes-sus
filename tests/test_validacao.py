@@ -70,9 +70,15 @@ def test_sanidade_aceita_cobertura_aps_acima_de_cem():
     verificar_sanidade(pd.DataFrame({"cobertura_aps": [104.7, 158.2]}))
 
 
+def test_sanidade_aceita_o_maximo_real_observado():
+    # 803,2 e o maior valor do download real de 2019-2024. Se o limite ficar
+    # abaixo disso, verificar_sanidade derruba o pipeline com dado legitimo.
+    verificar_sanidade(pd.DataFrame({"cobertura_aps": [803.21]}))
+
+
 def test_sanidade_rejeita_cobertura_aps_absurda():
     with pytest.raises(ValueError, match="cobertura_aps"):
-        verificar_sanidade(pd.DataFrame({"cobertura_aps": [250.0]}))
+        verificar_sanidade(pd.DataFrame({"cobertura_aps": [1500.0]}))
 
 
 def test_sanidade_rejeita_cobertura_aps_negativa():

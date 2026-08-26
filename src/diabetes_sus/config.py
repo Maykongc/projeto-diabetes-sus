@@ -23,14 +23,20 @@ CORTE_MIN_INTERNACOES_PERIODO = 5
 ROTULOS_FAIXAS = ["<30", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"]
 LIMITES_FAIXAS = [29, 39, 49, 59, 69, 79]
 
+# A cobertura de Atencao Primaria NAO entra no indice. O portal publico expoe duas
+# series com metodologias e periodos disjuntos (/cobertura/ab ate 2020, truncada em
+# 100%; /cobertura/aps de 2021 em diante, sem teto), sem nenhum mes em comum para
+# calibrar uma contra a outra. A media dos mesmos municipios salta 42,2 pontos na
+# virada, com correlacao de 0,506 — usar as duas na escala comum do ICVD faria o
+# indicador de recuperacao medir a troca de metodologia. Ela permanece como variavel
+# de contexto, analisada dentro de cada periodo. Ver docs/03-modelagem.md.
 COMPONENTES_ICVD = [
     "taxa_internacao_padronizada",
     "prop_amputacao",
     "letalidade",
-    "cobertura_aps",
 ]
-COMPONENTES_INVERTIDOS = ("cobertura_aps",)
-PESOS_IGUAIS = {c: 0.25 for c in COMPONENTES_ICVD}
+COMPONENTES_INVERTIDOS = ()
+PESOS_IGUAIS = {c: 1 / len(COMPONENTES_ICVD) for c in COMPONENTES_ICVD}
 
 UFS = (
     "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS",

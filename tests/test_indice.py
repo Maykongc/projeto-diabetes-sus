@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from diabetes_sus.config import PERIODO_ATUAL, PERIODO_BASE
+from diabetes_sus.config import (
+    COMPONENTES_ICVD,
+    COMPONENTES_INVERTIDOS,
+    PERIODO_ATUAL,
+    PERIODO_BASE,
+)
 from diabetes_sus.indice import (
     aplicar_corte,
     aplicar_corte_ranking,
@@ -23,7 +28,6 @@ def quadro(n=6, periodo=PERIODO_BASE, **sobrescreve):
         "taxa_internacao_padronizada": np.linspace(10, 60, n),
         "prop_amputacao": np.linspace(0.01, 0.06, n),
         "letalidade": np.linspace(0.02, 0.12, n),
-        "cobertura_aps": np.linspace(100, 50, n),
     }
     base.update(sobrescreve)
     return pd.DataFrame(base)
@@ -56,11 +60,29 @@ def test_icvd_fica_entre_zero_e_um():
     assert resultado["icvd"].between(0, 1).all()
 
 
-def test_cobertura_aps_entra_invertida():
-    # O município com MAIOR cobertura precisa ter o MENOR componente normalizado.
-    resultado = calcular_icvd(quadro()).sort_values("cobertura_aps")
-    assert resultado["cobertura_aps_norm"].iloc[-1] < (
-        resultado["cobertura_aps_norm"].iloc[0]
+def test_nenhum_componente_do_indice_entra_invertido():
+    # Os tres componentes atuais apontam todos na mesma direcao: maior valor
+    # bruto significa pior cuidado, logo maior componente normalizado.
+    assert COMPONENTES_INVERTIDOS == ()
+    resultado = calcular_icvd(quadro())
+    for componente in COMPONENTES_ICVD:
+        ordenado = resultado.sort_values(componente)
+        assert (
+            ordenado[f"{componente}_norm"].iloc[0]
+            < ordenado[f"{componente}_norm"].iloc[-1]
+        )
+
+
+def test_mecanismo_de_inversao_continua_funcionando_quando_declarado(monkeypatch):
+    # A inversao nao e usada hoje, mas segue no codigo para o caso de entrar um
+    # componente cuja direcao seja invertida. Sem este teste ela viraria codigo
+    # morto e nao verificado.
+    monkeypatch.setattr(
+        "diabetes_sus.indice.COMPONENTES_INVERTIDOS", ("letalidade",)
+    )
+    resultado = calcular_icvd(quadro()).sort_values("letalidade")
+    assert resultado["letalidade_norm"].iloc[-1] < (
+        resultado["letalidade_norm"].iloc[0]
     )
 
 
@@ -79,7 +101,6 @@ def test_escala_e_comum_aos_dois_periodos():
         taxa_internacao_padronizada=np.linspace(5, 30, 6),
         prop_amputacao=np.linspace(0.005, 0.03, 6),
         letalidade=np.linspace(0.01, 0.06, 6),
-        cobertura_aps=np.linspace(100, 80, 6),
     )
     resultado = calcular_icvd(pd.concat([base, atual], ignore_index=True))
 
@@ -109,7 +130,7 @@ def test_recuperacao_negativa_significa_melhora():
 
 
 def test_pesos_alternativos_mudam_o_icvd():
-    # Os componentes precisam ser NAO colineares. Quatro linspaces
+    # Os componentes precisam ser NAO colineares. Tres linspaces
     # monotonicos viram vetores identicos depois de normalizados, e a media
     # ponderada de vetores identicos ignora os pesos — o teste passaria a
     # ser impossivel de falhar por motivo errado.
@@ -118,10 +139,9 @@ def test_pesos_alternativos_mudam_o_icvd():
     pesado = calcular_icvd(
         df,
         pesos={
-            "taxa_internacao_padronizada": 0.1,
+            "taxa_internacao_padronizada": 0.15,
             "prop_amputacao": 0.7,
-            "letalidade": 0.1,
-            "cobertura_aps": 0.1,
+            "letalidade": 0.15,
         },
     )["icvd"]
     assert not np.allclose(igual, pesado)
@@ -135,7 +155,6 @@ def test_pesos_que_nao_somam_um_levantam_erro():
                 "taxa_internacao_padronizada": 0.5,
                 "prop_amputacao": 0.5,
                 "letalidade": 0.5,
-                "cobertura_aps": 0.5,
             },
         )
 
@@ -173,9 +192,6 @@ def test_aplicar_escala_usa_a_regua_de_outro_quadro_sem_normalizar_contra_si():
             ],
             "prop_amputacao": [municipal["prop_amputacao"].min()],
             "letalidade": [municipal["letalidade"].min()],
-            # cobertura_aps eh invertido: o MAIOR valor observado vira o
-            # MENOR componente normalizado (menor risco).
-            "cobertura_aps": [municipal["cobertura_aps"].max()],
         }
     )
 
