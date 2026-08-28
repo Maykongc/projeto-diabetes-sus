@@ -44,16 +44,24 @@ valor de 2019–2020 com um de 2021–2024.
 **Resultado esperado:** 33.418 linhas, 5.570 municípios, anos de 2019 a 2024
 completos. Se a contagem de municípios não fechar em 5.570, não siga adiante.
 
-## 3. Subir os insumos para `{BASE}/insumos/` no Drive
+## 3. Nada a subir para o Drive
 
-**Por quê:** a célula 2.3 do notebook (`notebooks/01_ingestao_colab.ipynb`) faz o join da camada silver com população e cobertura de APS, e ambos os arquivos precisam existir no Drive antes dela rodar — a célula anterior (2.2, verificação de insumos) interrompe a execução com `FileNotFoundError` se algum estiver faltando.
+**Deixou de existir.** O notebook clona o repositório público a cada sessão
+(`git clone` na célula 1.1), então o pacote `src/diabetes_sus/` e os dois insumos
+— `data/gold/populacao_municipio_faixa_sexo.parquet` e
+`data/gold/cobertura_aps.csv` — chegam junto com o clone. Não há upload manual de
+código nem de dados.
 
-**Como:** copiar dois arquivos para `MyDrive/diabetes_sus/insumos/` no Drive:
+O Google Drive continua sendo montado, mas apenas para o que precisa sobreviver a
+uma queda de sessão: as camadas `bronze/` e `silver/`, que custam horas de
+download, mais `gold/` e `logs/`. Esses diretórios são criados pela própria célula
+1.1.
 
-1. `data/gold/populacao_municipio_faixa_sexo.parquet` — já existe no repositório local (gerado pela Tarefa 5 a partir do Censo 2022). Só copiar.
-2. `data/gold/cobertura_aps.csv` — o arquivo produzido pelo script do item 2 acima.
+Consequência prática: se você corrigir algo no repositório e der `push`, basta
+reexecutar a célula 1.1 no Colab (ela faz `git pull` quando o clone já existe)
+para que o notebook passe a rodar o código novo — sem reenviar arquivo nenhum.
 
-- [ ] Feito
+- [ ] Nada a fazer
 
 ## 4. Rodar a ingestão no Colab
 
