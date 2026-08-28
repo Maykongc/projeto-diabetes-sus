@@ -65,11 +65,17 @@ para que o notebook passe a rodar o código novo — sem reenviar arquivo nenhum
 
 ## 4. Rodar a ingestão no Colab
 
-**Por quê:** é a etapa que só funciona no Colab — `datasus-dbc` não instala no Windows local com Python 3.13 (`02-coleta-de-dados.md`, Seção 2.4). É a etapa mais demorada de todo o projeto: 1.944 arquivos mensais, um download de FTP por vez.
+**Por quê:** é a etapa que só funciona no Colab — `datasus-dbc` não instala no Windows local com Python 3.13 (`02-coleta-de-dados.md`, Seção 2.4). São 1.944 arquivos mensais, **5,21 GB** medidos por listagem no servidor.
 
-**Como:** abrir `notebooks/01_ingestao_colab.ipynb` no Google Colab e executar todas as células, de cima para baixo. Pode levar horas, dependendo da velocidade do FTP do DATASUS.
+**Como:** abrir `notebooks/01_ingestao_colab.ipynb` no Google Colab e executar todas as células, de cima para baixo.
 
-**Importante — a ingestão é idempotente.** Se a sessão do Colab cair no meio (acontece, é comum em sessões longas), não é preciso recomeçar do zero: basta reconectar e rodar as células de novo. Cada arquivo já baixado é pulado automaticamente (a célula verifica se o parquet de destino já existe antes de baixar). Falhas persistentes de download (3 tentativas sem sucesso) são registradas em `logs/pendentes.json` no Drive, sem derrubar o restante da execução.
+**Quanto tempo:** cerca de **40 minutos**, com o download em 6 conexões FTP paralelas. Medido contra o servidor real: uma conexão única sustenta 0,50 MB/s (o que daria ~3 horas), seis sustentam 2,2–2,4 MB/s.
+
+**Transporte: `ftp://`, não `https://`.** O host `ftp.datasus.gov.br` não tem servidor web — as portas 80 e 443 recusam conexão, apenas a 21 responde. Uma versão anterior deste notebook usava `https://` e falhava em 100% dos downloads com `Connection timed out`. Se você vir esse erro em série, confira se a célula 1.3 está usando `ftp://`.
+
+**A ingestão é idempotente.** Se a sessão do Colab cair no meio — acontece, é comum em sessões longas — basta reconectar e rodar as células de novo. Cada arquivo já baixado é pulado (a célula confere se o parquet de destino existe antes de baixar), e a gravação é atômica: um arquivo provisório renomeado no fim, para que uma queda durante a escrita não deixe um parquet truncado que o checkpoint trataria como pronto.
+
+**Se aparecerem falhas em série,** a execução aborta sozinha ao acumular 60 delas, com mensagem explicando que algo está sistematicamente errado. As falhas ficam em `logs/pendentes.json` no Drive, classificadas em `rede` ou `processamento` — a distinção importa, porque só erro de rede justifica reabrir a conexão.
 
 - [ ] Feito — completude ≥ 98% confirmada pela célula 1.5 (senão, investigar `logs/pendentes.json` antes de seguir)
 
