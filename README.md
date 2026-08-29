@@ -4,7 +4,25 @@ Projeto de Parceria do curso de Analista de Dados (EBAC/Semantix). Análise de 5
 
 ## Principais achados
 
-**Pendente.** Esta seção só pode ser preenchida depois que o pipeline completo rodar contra dados reais — a camada gold (`data/gold/municipio_ano.csv`) ainda não existe, porque a ingestão no Google Colab é uma etapa manual que ainda não foi executada. O checklist para chegar até aqui está em [`docs/00-execucao-manual.md`](docs/00-execucao-manual.md); a estrutura de onde cada achado vai ser extraído já está pronta em [`docs/04-conclusoes.md`](docs/04-conclusoes.md).
+Base: **804.249 internações por diabetes** no SUS entre 2019 e 2024, nos 5.570 municípios. Os totais foram reconciliados contra o TabNet do DATASUS com **divergência zero** em 162 combinações UF × ano.
+
+**As amputações cresceram doze vezes mais rápido que as internações.** Entre 2019 e 2024, as internações subiram 2,4% e as amputações de membro inferior subiram **29,2%** — de 9.215 para 11.904 por ano. Não é que mais gente esteja adoecendo: é que quem chega ao hospital chega pior. Foram 63.863 amputações no período.
+
+**A pandemia interrompeu o cuidado e a conta veio em amputações.** Em 2020–21 as internações caíram 7,3% enquanto as amputações subiram 10,7%. O volume se recuperou depois de 2022 e voltou acima do patamar de 2019; a gravidade não: a proporção de internações que terminam em amputação chegou a 8,25%, pior que durante o próprio choque.
+
+**Homens são amputados 73% mais que mulheres, nas cinco regiões.** 10,46% contra 6,05%, com razão entre 1,51 e 2,28 dependendo da região — mas com letalidade **menor** (3,50% contra 4,18%) e idade de internação praticamente igual. Isso não descreve uma população mais doente; descreve uma população que chega mais tarde, já em estágio cirúrgico.
+
+**A desigualdade regional é de duas vezes.** O Norte interna 120,2 por 100 mil contra 58,3 do Sudeste, já corrigido pela estrutura etária — e foi a região que mais piorou (+10,3%). O Sudeste inverte o padrão: menor taxa de internação e maior proporção de amputação (9,82%).
+
+**Não houve recuperação geral, houve recuperação desigual.** Dos 3.365 municípios elegíveis ao ranking, 1.679 pioraram e 1.686 melhoraram. Centro-Oeste e Nordeste pioraram na média; Norte, Sul e Sudeste melhoraram.
+
+**Custo:** R$ 759 milhões e 5,3 milhões de dias de leito no período.
+
+Os achados completos, com as recomendações e as limitações — inclusive uma em que o próprio critério de robustez que estabeleci não foi atingido — estão em [`docs/04-conclusoes.md`](docs/04-conclusoes.md).
+
+![Internações por diabetes no SUS, 2019–2024](docs/img/serie_nacional.png)
+
+*A faixa sombreada marca 2020–2021. As internações caíram durante a pandemia e voltaram acima do patamar anterior; a proporção que termina em amputação não voltou.*
 
 ## Documentação
 
@@ -12,7 +30,7 @@ Projeto de Parceria do curso de Analista de Dados (EBAC/Semantix). Análise de 5
 - [Problema e justificativa](docs/01-problema.md)
 - [Coleta de dados](docs/02-coleta-de-dados.md)
 - [Modelagem](docs/03-modelagem.md)
-- [Conclusões](docs/04-conclusoes.md) — pendente de preenchimento
+- [Conclusões](docs/04-conclusoes.md)
 - [Guia do dashboard Power BI](docs/05-dashboard-powerbi.md)
 
 ## Como reproduzir
@@ -41,7 +59,7 @@ O passo a passo detalhado, com o motivo de cada etapa manual, está em [`docs/00
 │   ├── 01-problema.md
 │   ├── 02-coleta-de-dados.md
 │   ├── 03-modelagem.md
-│   ├── 04-conclusoes.md          pendente de preenchimento
+│   ├── 04-conclusoes.md          achados, recomendações e limitações
 │   └── 05-dashboard-powerbi.md
 ├── notebooks/
 │   ├── 01_ingestao_colab.ipynb   roda no Google Colab (bronze -> silver -> gold)

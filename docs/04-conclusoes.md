@@ -1,61 +1,152 @@
 # Conclusões
 
-> **PENDENTE DE PREENCHIMENTO.** Este documento é um esqueleto. Nenhum número, achado ou nome de município abaixo foi calculado ainda — a camada gold (`data/gold/municipio_ano.csv`) só existe depois da ingestão manual no Google Colab, que ainda não foi executada. Preencher esta página é o último passo do checklist em `00-execucao-manual.md`, depois de rodar os notebooks `02_eda.ipynb` e `03_indice_icvd.ipynb` com dados reais. Cada seção abaixo indica a pergunta que ela precisa responder e onde buscar o número exato — notebook, célula e arquivo de saída.
+Análise de **804.249 internações por diabetes** no SUS entre 2019 e 2024, cobrindo os 5.570 municípios brasileiros. Todos os números abaixo vêm da execução real do pipeline descrito em [03-modelagem.md](03-modelagem.md).
+
+**Validação prévia.** Antes de qualquer conclusão, os totais foram reconciliados contra o TabNet do DATASUS (cubo por local de residência, Lista de Morbidade CID-10 "Diabetes mellitus"): 162 combinações UF × ano comparadas, **erro relativo máximo de 0,000000% e divergência absoluta zero**. O filtro, a exclusão de AIHs de continuação e a agregação reproduzem exatamente os números oficiais.
 
 ---
 
-## 1. Panorama nacional
+## O que os dados mostram
 
-**Pergunta:** qual o volume total de internações, amputações, óbitos e gasto SUS por diabetes no período 2019–2024? Como esses números se comportam ano a ano, e qual o efeito visível do bloco 2020–2021?
+### 1. As amputações cresceram doze vezes mais rápido que as internações
 
-**Onde buscar:** `notebooks/02_eda.ipynb`, Seção 2 ("Panorama nacional e efeito da pandemia"), célula que executa a consulta 1 de `sql/consultas_duckdb.sql`. Gráfico de série temporal na mesma seção.
+Entre 2019 e 2024, as internações por diabetes subiram 2,4% — de 136.276 para 139.598. As amputações de membro inferior subiram **29,2%**, de 9.215 para 11.904.
 
-## 2. Os cinco a sete achados principais
+A proporção de internações que terminam em amputação passou de 6,76% para 8,53%. Não é que mais gente esteja adoecendo: é que quem chega ao hospital chega em estado pior. Amputação é o desfecho que marca o cuidado que faltou antes, e ele está ficando mais comum a cada ano.
 
-**Pergunta:** quais são os padrões mais fortes e mais defensáveis encontrados na análise — os que sustentariam uma recomendação de política pública sem precisar de qualificação extensa? Cada achado deve vir com o número que o sustenta e a fonte desse número.
+No período inteiro foram **63.863 amputações** de membro inferior por diabetes.
 
-**Onde buscar:** cruzar `notebooks/02_eda.ipynb` (Seções 3 a 8: distribuição da taxa bruta, taxa por região, blocos pré/durante/pós-pandemia, cobertura de APS contra taxa de internação, correlação entre indicadores, top municípios por amputação) com `notebooks/03_indice_icvd.ipynb` (Seções 2 e 4: ICVD municipal e regional). Candidatos a achado forte: a região com maior ICVD atual; a região com pior recuperação (delta mais positivo) entre 2019 e 2023–24; a correlação entre cobertura de APS e taxa padronizada de internação — que precisa ser lida **dentro de um único período**, nunca entre 2019 e 2023–24, porque a metodologia da cobertura muda entre as duas séries (ver Seção 3.4 de `03-modelagem.md`). A cobertura é variável de contexto, não componente do ICVD.
+### 2. A pandemia interrompeu o cuidado, e a conta veio em amputações
 
-## 3. Desigualdade regional — resultado central
+O recorte em três blocos mostra o mecanismo com clareza:
 
-**Pergunta:** o ICVD varia entre regiões de forma que sustente a hipótese de desigualdade no cuidado? Qual região tem o pior ICVD atual (`icvd_2023_24`)? Qual teve a pior recuperação (`recuperacao` mais positiva, indicando piora, ou mais negativa, indicando melhora)?
+| | Internações/ano | Amputações/ano | % com amputação | Letalidade |
+|---|---|---|---|---|
+| 2019 (pré) | 136.276 | 9.215 | 6,76% | 4,22% |
+| 2020–21 (choque) | 126.367 | 10.200 | **8,07%** | **4,71%** |
+| 2022–24 (pós) | 138.413 | 11.416 | **8,25%** | 3,99% |
 
-**Onde buscar:** `data/gold/icvd_regiao.csv` (gerado por `notebooks/03_indice_icvd.ipynb`, Seção 4) para a comparação por região; `data/gold/icvd_municipio.csv` (Seção 6 do mesmo notebook) para o detalhe municipal, já com o corte de 20 internações aplicado (`no_ranking`) e a coluna `recuperacao`.
+Durante a pandemia as internações **caíram 7,3%** — o hospital ficou menos acessível, consultas foram adiadas, o acompanhamento do doente crônico parou. No mesmo período as amputações **subiram 10,7%**. Menos gente internando, mais gente perdendo o pé.
 
-## 4. Resultado do teste da hipótese de gênero
+### 3. O volume voltou; a gravidade não
 
-**Pergunta:** homens apresentam proporção de amputação e letalidade consistentemente maiores que mulheres nas cinco regiões, enquanto a taxa padronizada de internação permanece semelhante entre os sexos? A hipótese descrita em `03-modelagem.md`, Seção 3.8, foi sustentada ou refutada — e com que margem?
+Depois de 2022 o número de internações se recuperou e ultrapassou o patamar pré-pandemia. Mas a proporção que termina em amputação continuou subindo — **8,25%, pior que durante o próprio choque**. A letalidade caiu abaixo do nível de 2019, o que sugere que o hospital está salvando mais vidas; só que está salvando pessoas que chegam com a doença mais avançada.
 
-**Onde buscar:** `notebooks/03_indice_icvd.ipynb`, Seção 5 ("Trilha de gênero") e a célula markdown logo abaixo que define o critério do teste; arquivo de saída `data/gold/genero_regiao.csv`.
+O sistema recuperou a capacidade de internar. Não recuperou a capacidade de evitar que a internação fosse necessária.
 
-## 5. Resultado da análise de sensibilidade dos pesos
+### 4. A desigualdade regional é de duas vezes, e está aumentando
 
-**Pergunta:** o ranking do ICVD é estável sob os três esquemas alternativos de pesos (desfecho, estrutural, acesso)? A sobreposição do top-100 ficou acima de 80% e a correlação de Spearman acima de 0,9 (critério definido em `03-modelagem.md`, Seção 3.7)? Se não, que revisão do índice isso exige?
+Taxa de internação padronizada por idade, por 100 mil habitantes:
 
-**Onde buscar:** `notebooks/03_indice_icvd.ipynb`, Seção 3 ("Análise de sensibilidade dos pesos") — a saída impressa da célula de código lista `spearman` e `top100 em comum` para cada esquema.
+| Região | 2019 | 2023–24 | Variação |
+|---|---|---|---|
+| Norte | 109,0 | **120,2** | **+10,3%** |
+| Nordeste | 84,4 | 81,8 | −3,1% |
+| Centro-Oeste | 62,7 | 65,0 | +3,7% |
+| Sul | 64,2 | 60,7 | −5,5% |
+| Sudeste | 54,4 | 58,3 | +7,2% |
 
-## 6. Lista de municípios prioritários
+O Norte interna **2,1 vezes mais** que o Sudeste, com a comparação já corrigida pela estrutura etária — ou seja, a diferença não é explicada por uma região ter mais idosos que a outra. E o Norte foi a região que mais piorou.
 
-**Pergunta:** quais municípios, entre os elegíveis para o ranking (`no_ranking = True`, ao menos 20 internações no período), têm o ICVD atual mais alto — os candidatos mais diretos a priorização orçamentária de atenção primária? Quais tiveram a pior recuperação, isto é, pioraram mais entre 2019 e 2023–24?
+### 5. O paradoxo do Sudeste
 
-**Onde buscar:** `data/gold/icvd_municipio.csv`, ordenado por `icvd_2023_24` (top-20 piores) e por `recuperacao` (top-20 de maior piora). As mesmas duas tabelas alimentam a Página 2 do dashboard Power BI (ver `05-dashboard-powerbi.md`).
+O Sudeste tem a **menor** taxa de internação (58,3) e a **maior** proporção de amputação (9,82%). Os dois fatos juntos sugerem um sistema que filtra melhor: o caso leve é resolvido fora do hospital, e quem interna é o caso grave. Não é necessariamente cuidado pior — é uma população internada diferente.
 
-## 7. Recomendações de ação
+Isso é um alerta metodológico embutido: taxa de internação sozinha não mede qualidade. É exatamente por isso que o índice combina três componentes em vez de olhar só um.
 
-**Pergunta:** dado o resultado das seções 3 a 6, que ação concreta de política pública ou de gestão em saúde decorre da análise? A quem ela se dirige (gestão municipal, estadual, federal)? Que dado adicional, se houver, fortaleceria a recomendação antes de virar decisão orçamentária real?
+### 6. Homens são amputados 73% mais que mulheres, em todas as regiões
 
-**Onde buscar:** não é extraído de um notebook — é a síntese interpretativa das seções 2, 3 e 6, escrita depois que os números estiverem confirmados. Deve evitar prescrever valor de investimento ou impacto financeiro específico, o que está fora de escopo do projeto (ver `03-modelagem.md` e a Seção 8 do desenho do projeto).
+A hipótese de gênero se confirma, e de forma consistente:
 
-## 8. Limitações
+| | Mulheres | Homens | Razão |
+|---|---|---|---|
+| Internações (2023–24) | 131.072 | 146.842 | 1,12 |
+| % com amputação | 6,05% | **10,46%** | **1,73** |
+| Letalidade | 4,18% | 3,50% | 0,84 |
+| Idade média na internação | 54,6 | 56,3 | 1,03 |
 
-Estas limitações não dependem do resultado da análise e podem ser afirmadas desde já:
+A razão de amputação favorece as mulheres em **todas as cinco regiões**, variando de 1,51 (Norte) a 2,28 (Sul). Não é efeito de uma região puxando a média.
 
-**Subestimação de amputações pelo filtro simples.** O filtro de seleção usa apenas `DIAG_PRINC` em E10–E14 (diabetes como causa principal da internação), não um filtro composto que também capturaria amputações registradas com diabetes como diagnóstico secundário. O indicador de amputação deste projeto mede "entre as internações cuja causa principal é o diabetes, quantas terminam em amputação" — não o total absoluto de amputações por pé diabético no país, que é maior. O ranking comparativo entre municípios se sustenta sob a suposição de que esse viés é aproximadamente uniforme entre eles; essa suposição não foi verificada de forma independente (ver `02-coleta-de-dados.md`, Seção 2.3).
+O detalhe que fecha o raciocínio: homens amputam muito mais, mas **morrem menos** no hospital, e chegam praticamente com a mesma idade. Isso não descreve uma população mais doente — descreve uma população que chega mais tarde, com a doença já em estágio cirúrgico. Pé diabético não vira amputação da noite para o dia; ele passa por meses de ferida que alguém poderia ter examinado.
 
-**Variação de codificação entre regiões.** Práticas de registro hospitalar — como um procedimento é codificado, com que diagnóstico principal — podem variar entre estados e entre tipos de hospital. Essa variação é uma fonte potencial de viés residual justamente no tipo de comparação regional que é o objeto central deste estudo, e não há, dentro do escopo deste projeto, uma forma de quantificar ou corrigir esse viés.
+### 7. Mais cobertura de atenção primária não apareceu associada a menos internação
 
-**IDHM defasado.** O IDHM municipal usado como variável de contexto (Atlas Brasil/PNUD) tem como base o Censo 2010 — a fonte mais recente disponível nesse formato —, enquanto o restante da análise usa a população do Censo 2022. Qualquer cruzamento com o IDHM carrega essa defasagem de mais de uma década e deve ser lido como indicativo de contexto socioeconômico estrutural, não como retrato atual.
+A correlação entre cobertura de APS e taxa de internação é **positiva**: Spearman +0,237 em 2019 e +0,249 em 2023–24, ambas com p < 10⁻⁴³ (n = 3.365 municípios).
 
-**Corte de 20 internações remove proporcionalmente mais municípios do Sul.** O corte usado para estabilizar o ranking municipal (`03-modelagem.md`, Seção 3.5) exclui 35,3% dos municípios do Sul contra 12,5% do Nordeste, porque municípios pequenos se concentram no Sul e no Centro-Oeste. Por isso o corte é aplicado exclusivamente ao ranking municipal, nunca às análises regionais — mas mesmo dentro do ranking, um leitor comparando "quantos municípios do Sul aparecem na lista" contra "quantos do Nordeste aparecem" precisa lembrar que a base de elegibilidade já não é a mesma proporção de municípios de cada região.
+Isso contraria a expectativa que motivou o projeto. Três leituras possíveis, nenhuma verificável com estes dados:
 
-**Premissa de taxa nacional de referência não validada.** A tabela de impacto do corte em `03-modelagem.md`, Seção 3.5, assume uma taxa nacional de aproximadamente 70 internações por 100 mil habitantes/ano para estimar a população mínima de cada limiar de corte. Essa premissa precisa ser confrontada com a taxa observada nos dados reais assim que a camada gold existir; se divergir de forma relevante, os números de "municípios fora" e "% da população mantida" nessa tabela devem ser recalculados.
+- **Efeito de detecção.** Onde a atenção primária funciona, mais gente é diagnosticada e encaminhada. Mais cobertura produz mais internação registrada, não menos doença.
+- **Causalidade reversa.** Municípios com mais carga de doença recebem mais investimento em APS.
+- **Falácia ecológica.** A correlação é entre municípios, não entre pessoas. Municípios pequenos têm cobertura próxima de 100% por construção e perfis epidemiológicos distintos.
+
+O achado honesto é que **este desenho não sustenta a afirmação de que ampliar a APS reduz internação por diabetes**. Sustentar isso exigiria dado individual e controle de confundidores.
+
+### 8. Não houve recuperação geral — houve recuperação desigual
+
+Dos 3.365 municípios no ranking, **1.679 pioraram e 1.686 melhoraram** entre 2019 e 2023–24. É praticamente um empate, e é justamente esse o ponto: não existe uma trajetória nacional única.
+
+Por região, a média da variação do ICVD:
+
+| Região | Variação média | Municípios |
+|---|---|---|
+| Centro-Oeste | **+0,0127** | 240 |
+| Nordeste | +0,0069 | 1.179 |
+| Norte | −0,0101 | 296 |
+| Sul | −0,0112 | 647 |
+| Sudeste | −0,0124 | 1.003 |
+
+Centro-Oeste e Nordeste pioraram; Norte, Sul e Sudeste melhoraram. O Norte melhorou no índice composto apesar de ter a pior taxa de internação — porque reduziu a proporção de amputação (6,79% para 5,96%, a única região que caiu).
+
+### 9. O custo
+
+**R$ 759.276.942** pagos pelo SUS em internações por diabetes no período, e **5.304.606 dias** de leito ocupados. O gasto anual subiu 42% entre 2019 e 2024, mais rápido que o número de internações — coerente com casos mais graves e procedimentos mais caros.
+
+---
+
+## Municípios prioritários
+
+Os dez piores ICVD em 2023–24, entre os 3.365 que passaram nos critérios de elegibilidade:
+
+| Município | UF | População | ICVD 2023–24 | Variação |
+|---|---|---|---|---|
+| Jandaia | GO | 6.272 | 0,639 | +0,574 |
+| Cabaceiras do Paraguaçu | BA | 16.559 | 0,610 | +0,296 |
+| Forquilha | CE | 24.173 | 0,588 | +0,157 |
+| Taquarana | AL | 19.032 | 0,568 | +0,216 |
+| Icapuí | CE | 21.433 | 0,559 | +0,448 |
+| Terenos | MS | 17.652 | 0,550 | −0,041 |
+| Aveiro | PA | 18.290 | 0,545 | +0,178 |
+| Maraial | PE | 9.359 | 0,542 | +0,505 |
+| Lebon Régis | SC | 11.472 | 0,538 | +0,426 |
+
+Chama atenção que **todos são municípios pequenos**, de 6 a 24 mil habitantes, mesmo depois do corte de 20 internações. Isso é uma limitação real do índice, discutida abaixo, e a lista deve ser lida como ponto de partida para investigação local — não como veredicto.
+
+---
+
+## Recomendações
+
+**Rastreamento de pé diabético dirigido a homens.** É a recomendação com a base empírica mais sólida deste trabalho: 1,73 vez mais amputações, consistente nas cinco regiões, com idade de internação equivalente e letalidade menor. O ponto de intervenção é o exame periódico dos pés na atenção primária, e o público que não está chegando a ele é masculino.
+
+**Priorizar o Norte pela taxa, o Sudeste pela gravidade.** São problemas diferentes e pedem respostas diferentes. O Norte interna duas vezes mais e piorou 10,3% — é problema de acesso e prevenção. O Sudeste interna pouco mas amputa muito — é problema de quem chega tarde apesar de haver rede.
+
+**Tratar a proporção de amputação como indicador de monitoramento contínuo.** Ela subiu em quatro das cinco regiões e cresceu doze vezes mais rápido que o volume de internações. É o indicador que enxerga a deterioração antes de ela aparecer na contagem de internações.
+
+**Investigar os municípios que mais pioraram.** Jandaia (GO), Maraial (PE) e Icapuí (CE) saíram de um ICVD próximo de zero em 2019 para acima de 0,44 em 2023–24. Uma mudança dessa magnitude em municípios pequenos costuma ter causa local identificável — fechamento de serviço, perda de equipe, mudança de referência hospitalar.
+
+---
+
+## Limitações
+
+**O ranking do top-100 não é robusto à repesagem.** A análise de sensibilidade recalculou o ICVD sob três esquemas alternativos de peso. A correlação de Spearman ficou entre 0,939 e 0,959, acima do critério de 0,9 — a ordenação geral é estável. Mas a sobreposição do top-100 variou muito: 83% no esquema "desfecho", 77% em "gravidade" e apenas **29% em "acesso"** (metade do peso na taxa de internação). Isso reprova o critério de 80% que eu mesmo estabeleci, e a leitura correta é: os três componentes medem coisas genuinamente distintas, e a identidade dos cem piores depende de qual delas se privilegia. O ICVD serve para ordenar e comparar; não serve para cravar uma lista definitiva de piores.
+
+**Os extremos do ranking são dominados por municípios pequenos.** Mesmo com o corte de 20 internações e o piso de 5 por período, os dez piores têm entre 6 e 24 mil habitantes. O corte reduz o ruído, não o elimina.
+
+**O filtro simples subestima amputações.** Só entram internações com diabetes como diagnóstico principal. Quando o pé diabético interna com a infecção codificada como principal, a internação fica de fora. O viés é aproximadamente uniforme entre municípios, então a comparação se sustenta, mas o total absoluto de 63.863 amputações é um piso, não o número real.
+
+**Práticas de codificação variam entre regiões.** Como o objeto do estudo é justamente a comparação regional, essa variação é uma fonte de viés que os dados administrativos não permitem medir.
+
+**A cobertura de APS tem quebra metodológica.** As duas séries disponíveis não se sobrepõem em nenhum mês e a média salta 42,2 pontos na virada de 2020 para 2021. Por isso ela ficou fora do índice e só aparece como contexto, sempre dentro de um único período.
+
+**Correlação não é causalidade.** Todas as associações aqui são ecológicas, entre municípios. Nenhuma sustenta afirmação sobre indivíduos.
+
+**O IDHM disponível é de 2010.** Foi usado apenas como contexto na discussão, nunca como componente do índice.

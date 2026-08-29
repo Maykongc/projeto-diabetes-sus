@@ -141,7 +141,18 @@ Uma escolha de pesos iguais é defensável, mas não é a única defensável. Pa
 
 O critério de aceitação, definido antes de rodar a análise (`notebooks/03_indice_icvd.ipynb`, Seção 3): sobreposição do top-100 acima de 80% e correlação de Spearman acima de 0,9 tornam o ranking defensável — a escolha de pesos vira nota de rodapé, não um ponto vulnerável da metodologia. Abaixo desse critério, o índice exigiria revisão antes de qualquer entrega.
 
-**Este resultado ainda não existe.** A análise depende da camada gold, que só é gerada após a execução manual da ingestão no Colab (ver `00-execucao-manual.md`). O notebook está implementado e pronto para rodar; os números de Spearman e de sobreposição do top-100, e a conclusão sobre se o critério foi atingido, serão preenchidos em `04-conclusoes.md` assim que a execução acontecer — não são reportados aqui para não antecipar um resultado que ainda não foi calculado.
+**Resultado da execução real** (3.365 municípios elegíveis, período 2023–24):
+
+| Esquema | Spearman | Top-100 em comum |
+|---|---|---|
+| iguais (referência) | 1,000 | 100 |
+| desfecho (45% amputação) | 0,951 | 83 |
+| gravidade (45% letalidade) | 0,959 | 77 |
+| acesso (50% taxa de internação) | 0,939 | **29** |
+
+**O critério foi atingido pela metade, e isso precisa ser dito.** A correlação de Spearman ficou entre 0,939 e 0,959 em todos os esquemas, acima do piso de 0,9: a **ordenação geral** dos municípios é estável e não depende dos pesos. Mas a sobreposição do top-100 caiu para 29% no esquema que concentra metade do peso na taxa de internação — muito abaixo do piso de 80% que eu havia fixado.
+
+A leitura correta não é que o índice está errado, e sim que os três componentes medem coisas genuinamente diferentes. Os municípios com pior taxa de internação padronizada não são, em larga medida, os mesmos que mais amputam. Se fossem, o índice composto seria redundante — bastaria um componente. A consequência prática é que o ICVD serve para **ordenar e comparar**, e a lista dos cem piores deve ser apresentada como "os cem piores segundo este índice", nunca como veredicto sobre quais municípios são objetivamente os piores do país.
 
 ## 3.8 Trilha de gênero — hipótese a testar
 
